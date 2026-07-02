@@ -69,4 +69,4 @@ bench-after:
 	$(TUNED_FLAGS) taskset -c 0 cargo bench -p rmc-core --bench hot_path -- --baseline before
 
 bench-compare:
-	cargo bench-compare -p rmc-minimal --bin rmc-minimal --reps 10 --metric-regex 'steps/sec:\s*([\d.]+)' --progress-regex 'step (\d+)/(\d+)' -- full 100000000
+	cargo bench-compare -p rmc-minimal --bin rmc-minimal --reps 5 --metric-regex 'steps/sec:\s*([\d.]+)' --progress-regex 'step (\d+)/(\d+)' -- full 20000000
