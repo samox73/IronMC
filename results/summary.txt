@@ -1,0 +1,23 @@
+steps_done: 5000000
+cycles_done: 1000000
+samples: 1000000
+chains: 1
+E: -1.02514946 +/- 0.00347711  target -1.01300000  delta -0.01214946
+Z: 0.58314109 +/- 0.00142842  target 0.59000000  delta -0.00685891
+zeroth_mean: 0.48317200
+mean_order: 0.84797800
+finite_selfenergy_bins: 4000/4000
+final_reweighting_energy_estimate: -1.02361448
+============================
+UPDATE STATISTICS:
+============================
+Update                      Weight              Proposed            Impossible          Accepted            Acc. ratio
+--------------------------------------------------------------------------------------------------------------------------------
+change_tau                  1.000000            625303              0                   625303              1.000000
+change_internal_tau         1.000000            624961              0                   93110               0.148985
+add_phonon                  1.000000            625191              0                   195217              0.312252
+remove_phonon               1.000000            625125              0                   195212              0.312277
+rescale_diagram             1.000000            625899              0                   70078               0.111964
+change_internal_q_modulus   1.000000            624896              0                   163738              0.262024
+change_internal_q_direction 1.000000            625363              0                   92707               0.148245
+change_topology             1.000000            623262              0                   43825               0.070316

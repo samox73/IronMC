@@ -1,0 +1,48 @@
+[workspace]
+members = [
+    "crates/rmc-core",
+    "crates/rmc-grids",
+    "crates/rmc-io",
+    "crates/rmc-numeric",
+    "crates/rmc-frohlich",
+    "crates/rmc-minimal",
+    "crates/rmc-stats",
+    "crates/rmc",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT"
+
+[workspace.dependencies]
+criterion = "0.5"
+erased-serde = "0.4"
+indicatif = "0.17"
+nalgebra = { version = "0.33", default-features = false, features = ["std"] }
+num-complex = "0.4"
+proptest = "1"
+rand = "0.8"
+rand_distr = "0.4"
+rand_core = "0.6"
+rand_xoshiro = "0.6"
+rayon = "1"
+rmc-core = { path = "crates/rmc-core" }
+rmc-grids = { path = "crates/rmc-grids" }
+rmc-io = { path = "crates/rmc-io" }
+rmc-numeric = { path = "crates/rmc-numeric" }
+rmc-stats = { path = "crates/rmc-stats" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+slotmap = { version = "1", features = ["serde"] }
+thiserror = "1"
+rustfft = "6"
+
+# Fully-optimized build for benchmarking (the "tuned Rust" tier vs C++ -O3).
+# Build with: RUSTFLAGS="-C target-cpu=native" cargo build --profile release-tuned -p rmc-frohlich
+[profile.release-tuned]
+inherits = "release"
+lto = "fat"
+codegen-units = 1

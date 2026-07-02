@@ -1,0 +1,26 @@
+[package]
+name = "rmc-frohlich"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+rmc-core = { workspace = true, features = ["serde"] }
+rmc-stats.workspace = true
+rmc-grids.workspace = true
+rmc-numeric.workspace = true
+rmc-io.workspace = true
+nalgebra = { workspace = true, features = ["serde-serialize"] }
+rand.workspace = true
+rand_distr.workspace = true
+rustfft.workspace = true
+num-complex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+slotmap.workspace = true
+indicatif.workspace = true
+rayon.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
