@@ -133,6 +133,7 @@ pub fn build_measurement(cfg: &RunConfig, diagram: &Diagram) -> PolaronMeasureme
         cfg.num_bins,
         cfg.max_tau,
         cfg.n_batches,
+        cfg.max_steps.div_ceil(cfg.steps_per_cycle.max(1)) as usize,
         cfg.energy_estimate,
         cfg.initial_self_consistent_period,
         cfg.period_multiplier,

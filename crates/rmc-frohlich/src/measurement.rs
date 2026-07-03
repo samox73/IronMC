@@ -7,6 +7,7 @@ use crate::diagram::{norm0, Diagram};
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct BatchedSum {
     n_batches: usize,
+    batch_len: usize,
     batch_sums: Vec<f64>,
     batch_counts: Vec<u64>,
     next: usize,
@@ -14,9 +15,15 @@ pub struct BatchedSum {
 
 impl BatchedSum {
     pub fn new(n_batches: usize) -> Self {
+        Self::with_expected_samples(n_batches, n_batches)
+    }
+
+    pub fn with_expected_samples(n_batches: usize, expected_samples: usize) -> Self {
         assert!(n_batches >= 2, "jackknife needs at least two batches");
+        let batch_len = expected_samples.max(1).div_ceil(n_batches).max(1);
         Self {
             n_batches,
+            batch_len,
             batch_sums: vec![0.0; n_batches],
             batch_counts: vec![0; n_batches],
             next: 0,
@@ -24,7 +31,7 @@ impl BatchedSum {
     }
 
     pub fn push(&mut self, value: f64) {
-        let batch = self.next % self.n_batches;
+        let batch = (self.next / self.batch_len).min(self.n_batches - 1);
         self.batch_sums[batch] += value;
         self.batch_counts[batch] += 1;
         self.next += 1;
@@ -62,6 +69,7 @@ impl BatchedSum {
 impl Merge for BatchedSum {
     fn merge(self, other: Self) -> Self {
         assert_eq!(self.n_batches, other.n_batches);
+        assert_eq!(self.batch_len, other.batch_len);
         let batch_sums = self
             .batch_sums
             .into_iter()
@@ -76,6 +84,7 @@ impl Merge for BatchedSum {
             .collect();
         Self {
             n_batches: self.n_batches,
+            batch_len: self.batch_len,
             batch_sums,
             batch_counts,
             next: self.next + other.next,
@@ -96,6 +105,7 @@ impl Merge for BatchedSum {
 pub struct BinnedBatchedSums {
     n_batches: usize,
     num_bins: usize,
+    batch_len: usize,
     /// bin-major: `batch_sums[bin * n_batches + batch]`.
     batch_sums: Vec<f64>,
     /// shared across all bins (the global per-batch sample count).
@@ -105,10 +115,20 @@ pub struct BinnedBatchedSums {
 
 impl BinnedBatchedSums {
     pub fn new(num_bins: usize, n_batches: usize) -> Self {
+        Self::with_expected_samples(num_bins, n_batches, n_batches)
+    }
+
+    pub fn with_expected_samples(
+        num_bins: usize,
+        n_batches: usize,
+        expected_samples: usize,
+    ) -> Self {
         assert!(n_batches >= 2, "jackknife needs at least two batches");
+        let batch_len = expected_samples.max(1).div_ceil(n_batches).max(1);
         Self {
             n_batches,
             num_bins,
+            batch_len,
             batch_sums: vec![0.0; num_bins * n_batches],
             batch_counts: vec![0; n_batches],
             next: 0,
@@ -122,7 +142,7 @@ impl BinnedBatchedSums {
     /// so the denominators stay aligned with the scalar accumulators.
     #[inline]
     pub fn push(&mut self, bin: usize, value: f64) {
-        let batch = self.next % self.n_batches;
+        let batch = (self.next / self.batch_len).min(self.n_batches - 1);
         self.batch_sums[bin * self.n_batches + batch] += value;
         self.batch_counts[batch] += 1;
         self.next += 1;
@@ -161,6 +181,7 @@ impl Merge for BinnedBatchedSums {
     fn merge(self, other: Self) -> Self {
         assert_eq!(self.n_batches, other.n_batches);
         assert_eq!(self.num_bins, other.num_bins);
+        assert_eq!(self.batch_len, other.batch_len);
         let batch_sums = self
             .batch_sums
             .into_iter()
@@ -176,6 +197,7 @@ impl Merge for BinnedBatchedSums {
         Self {
             n_batches: self.n_batches,
             num_bins: self.num_bins,
+            batch_len: self.batch_len,
             batch_sums,
             batch_counts,
             next: self.next + other.next,
@@ -220,6 +242,8 @@ pub struct SeriesEstimate {
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct PolaronStats {
     pub zeroth: BatchedSum,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub zeroth_for_energy: Option<BatchedSum>,
     pub exact: BinnedBatchedSums,
     pub hist: BinnedBatchedSums,
     pub energy: BatchedSum,
@@ -283,7 +307,7 @@ impl PolaronStats {
 
     pub fn jackknife_energy(&self) -> Estimate {
         let n0 = norm0(self.max_tau, self.dispersion());
-        jackknife_ratio(&self.energy, &self.zeroth, |energy, zeroth| {
+        jackknife_ratio(&self.energy, self.energy_denominator(), |energy, zeroth| {
             if zeroth == 0.0 {
                 f64::NAN
             } else {
@@ -294,7 +318,7 @@ impl PolaronStats {
 
     pub fn jackknife_quasiparticle_weight(&self) -> Estimate {
         let n0 = norm0(self.max_tau, self.dispersion());
-        jackknife_ratio(&self.a, &self.zeroth, |a, zeroth| {
+        jackknife_ratio(&self.a, self.energy_denominator(), |a, zeroth| {
             if zeroth == 0.0 {
                 f64::NAN
             } else {
@@ -318,6 +342,10 @@ impl PolaronStats {
     fn dispersion(&self) -> f64 {
         self.momentum * self.momentum / (2.0 * Diagram::MASS) - self.mu
     }
+
+    fn energy_denominator(&self) -> &BatchedSum {
+        self.zeroth_for_energy.as_ref().unwrap_or(&self.zeroth)
+    }
 }
 
 impl Merge for PolaronStats {
@@ -325,6 +353,10 @@ impl Merge for PolaronStats {
         assert_eq!(self.grid, other.grid);
         Self {
             zeroth: self.zeroth.merge(other.zeroth),
+            zeroth_for_energy: match (self.zeroth_for_energy, other.zeroth_for_energy) {
+                (Some(lhs), Some(rhs)) => Some(lhs.merge(rhs)),
+                _ => None,
+            },
             exact: self.exact.merge(other.exact),
             hist: self.hist.merge(other.hist),
             energy: self.energy.merge(other.energy),
@@ -357,6 +389,7 @@ impl PolaronMeasurement {
         num_bins: usize,
         max_tau: f64,
         n_batches: usize,
+        expected_samples: usize,
         energy_estimate: f64,
         self_consistent_period: usize,
         period_multiplier: f64,
@@ -365,12 +398,24 @@ impl PolaronMeasurement {
         let grid = GridSpec::new(0.0, max_tau, num_bins + 1);
         Self {
             stats: PolaronStats {
-                zeroth: BatchedSum::new(n_batches),
-                exact: BinnedBatchedSums::new(num_bins, n_batches),
-                hist: BinnedBatchedSums::new(num_bins, n_batches),
-                energy: BatchedSum::new(n_batches),
-                a: BatchedSum::new(n_batches),
-                order: BatchedSum::new(n_batches),
+                zeroth: BatchedSum::with_expected_samples(n_batches, expected_samples),
+                zeroth_for_energy: Some(BatchedSum::with_expected_samples(
+                    n_batches,
+                    expected_samples,
+                )),
+                exact: BinnedBatchedSums::with_expected_samples(
+                    num_bins,
+                    n_batches,
+                    expected_samples,
+                ),
+                hist: BinnedBatchedSums::with_expected_samples(
+                    num_bins,
+                    n_batches,
+                    expected_samples,
+                ),
+                energy: BatchedSum::with_expected_samples(n_batches, expected_samples),
+                a: BatchedSum::with_expected_samples(n_batches, expected_samples),
+                order: BatchedSum::with_expected_samples(n_batches, expected_samples),
                 grid,
                 energy_estimate,
                 energy_estimates: vec![energy_estimate],
@@ -401,6 +446,9 @@ impl PolaronMeasurement {
         self.stats.energy_estimates.push(new_estimate);
         self.stats.energy.reset();
         self.stats.a.reset();
+        if let Some(zeroth) = &mut self.stats.zeroth_for_energy {
+            zeroth.reset();
+        }
         self.stats.self_consistent_count = 0;
         self.stats.self_consistent_period =
             ((self.stats.self_consistent_period as f64) * self.stats.period_multiplier) as usize;
@@ -433,6 +481,9 @@ impl Measurement<Diagram> for PolaronMeasurement {
         };
 
         self.stats.zeroth.push(if is_zeroth { 1.0 } else { 0.0 });
+        if let Some(zeroth) = &mut self.stats.zeroth_for_energy {
+            zeroth.push(if is_zeroth { 1.0 } else { 0.0 });
+        }
         self.stats
             .energy
             .push(if is_zeroth { 0.0 } else { -exp_energy });
@@ -539,9 +590,12 @@ mod tests {
     fn binned_matches_per_bin_batched_sum() {
         let n_batches = 4;
         let num_bins = 3;
-        let mut binned = BinnedBatchedSums::new(num_bins, n_batches);
-        let mut per_bin: Vec<BatchedSum> =
-            (0..num_bins).map(|_| BatchedSum::new(n_batches)).collect();
+        let expected_samples = 10;
+        let mut binned =
+            BinnedBatchedSums::with_expected_samples(num_bins, n_batches, expected_samples);
+        let mut per_bin: Vec<BatchedSum> = (0..num_bins)
+            .map(|_| BatchedSum::with_expected_samples(n_batches, expected_samples))
+            .collect();
 
         // (active bin, contributed value); includes an order-0-style sample (value 0.0).
         let samples = [
@@ -580,14 +634,37 @@ mod tests {
         }
     }
 
+    #[test]
+    fn batched_sum_uses_contiguous_blocks() {
+        let mut sum = BatchedSum::with_expected_samples(4, 10);
+        for value in 0..10 {
+            sum.push(value as f64);
+        }
+
+        assert_eq!(sum.batch_counts, vec![3, 3, 3, 1]);
+        assert_eq!(sum.batch_sums, vec![3.0, 12.0, 21.0, 9.0]);
+    }
+
+    #[test]
+    fn binned_sum_uses_same_contiguous_blocks() {
+        let mut sums = BinnedBatchedSums::with_expected_samples(2, 4, 10);
+        for sample in 0..10 {
+            sums.push(sample % 2, 1.0);
+        }
+
+        assert_eq!(sums.batch_counts, vec![3, 3, 3, 1]);
+        assert_eq!(sums.batch_mean(0, 0), Some(2.0 / 3.0));
+        assert_eq!(sums.batch_mean(1, 0), Some(1.0 / 3.0));
+    }
+
     /// A constant ratio series jackknifed per bin recovers the constant with zero error, exactly
     /// as the scalar `jackknife_ratio` does — exercising the shared numerator/denominator path.
     #[test]
     fn binned_selfenergy_ratio_is_constant() {
         let n_batches = 8;
         let num_bins = 2;
-        let mut exact = BinnedBatchedSums::new(num_bins, n_batches);
-        let mut zeroth = BatchedSum::new(n_batches);
+        let mut exact = BinnedBatchedSums::with_expected_samples(num_bins, n_batches, 80);
+        let mut zeroth = BatchedSum::with_expected_samples(n_batches, 80);
         // Every sample lands in bin 0 with exact=6, and zeroth=3 → ratio 2.0.
         for _ in 0..80 {
             exact.push(0, 6.0);
@@ -604,5 +681,30 @@ mod tests {
         let estimate = jackknife_from_batch_means(&batch_num, &batch_den, |num, den| num / den);
         assert!((estimate.mean - 2.0).abs() < 1.0e-12);
         assert!(estimate.stderr < 1.0e-12);
+    }
+
+    #[test]
+    fn reweighting_reset_keeps_energy_denominator_paired() {
+        let d0 = Diagram::default();
+        let d2 = Diagram::from_arcs(
+            1.0,
+            -1.1,
+            0.0,
+            30.0,
+            1.0,
+            &[
+                (0.0, 1.0, nalgebra::Vector3::new(0.2, 0.1, 0.0)),
+                (0.2, 0.8, nalgebra::Vector3::new(0.1, -0.2, 0.05)),
+            ],
+        );
+        let mut measurement = PolaronMeasurement::new(10, 30.0, 4, 6, -1.0168, 2, 2.0, &d0);
+        measurement.measure(&d0);
+        measurement.measure(&d2);
+        measurement.measure(&d0);
+
+        let stats = measurement.finish();
+        assert_eq!(stats.zeroth.total_count(), 3);
+        assert_eq!(stats.energy.total_count(), 0);
+        assert_eq!(stats.energy_denominator().total_count(), 0);
     }
 }

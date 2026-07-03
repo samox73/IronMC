@@ -34,7 +34,7 @@ fn measurement_collects_order_zero_and_linked_diagrams() {
     );
     sanity::check_sanity(&d2).unwrap();
 
-    let mut measurement = PolaronMeasurement::new(20, 30.0, 8, -1.0168, 1_000, 1.5, &d0);
+    let mut measurement = PolaronMeasurement::new(20, 30.0, 8, 80, -1.0168, 1_000, 1.5, &d0);
     for _ in 0..40 {
         measurement.measure(&d0);
         measurement.measure(&d2);
@@ -54,8 +54,8 @@ fn measurement_collects_order_zero_and_linked_diagrams() {
 #[test]
 fn polaron_stats_merge_adds_batch_accumulators() {
     let d = Diagram::default();
-    let mut lhs = PolaronMeasurement::new(10, 30.0, 4, -1.0168, 1_000, 1.5, &d);
-    let mut rhs = PolaronMeasurement::new(10, 30.0, 4, -1.0168, 1_000, 1.5, &d);
+    let mut lhs = PolaronMeasurement::new(10, 30.0, 4, 12, -1.0168, 1_000, 1.5, &d);
+    let mut rhs = PolaronMeasurement::new(10, 30.0, 4, 12, -1.0168, 1_000, 1.5, &d);
     for _ in 0..7 {
         lhs.measure(&d);
     }
