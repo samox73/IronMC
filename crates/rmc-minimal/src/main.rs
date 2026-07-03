@@ -2,18 +2,16 @@ use std::hint::black_box;
 use std::time::{Duration, Instant};
 
 use rmc_core::mc::{
-    run_typed, run_typed_with_callbacks, MetropolisKernel, RunCallbacks, SimulationCtx,
-    SimulationParams,
+    run_typed, run_typed_with_callbacks, MetropolisKernel, NullMeasurement, RunCallbacks,
+    SimulationCtx, SimulationParams,
 };
 use rmc_core::random::{ChainId, SeedSource};
 use rmc_core::RmcError;
-use rmc_minimal::{
-    build_bare, build_full, MinimalMeasurement, MinimalState, NoopMeasurement, DEFAULT_BATCH_SIZE,
-};
+use rmc_minimal::{build_bare, build_full, MinimalMeasurement, MinimalState, DEFAULT_BATCH_SIZE};
 use rmc_stats::ScalarJackknife;
 
-const DEFAULT_WARMUP_STEPS: u64 = 1_000_000;
-const DEFAULT_MAX_STEPS: u64 = 500_000_000;
+const DEFAULT_WARMUP_STEPS: u64 = 100_000;
+const DEFAULT_MAX_STEPS: u64 = 50_000_000;
 const STEPS_PER_CYCLE: u64 = 5;
 const SEED: u64 = 0x5eed_5eed_5eed_5eed;
 // How often the runner polls the progress callback; the callback itself rate-limits printing.
@@ -153,7 +151,7 @@ fn run_full_once(
         state,
         &mut rng,
         &mut kernel,
-        NoopMeasurement,
+        NullMeasurement,
         params(warmup_steps),
     )?;
 
@@ -195,7 +193,7 @@ fn run_bare_once(max_steps: u64, warmup_steps: u64) -> rmc_core::Result<RunResul
         state,
         &mut rng,
         &mut kernel,
-        NoopMeasurement,
+        NullMeasurement,
         params(warmup_steps),
     )?;
 
@@ -205,7 +203,7 @@ fn run_bare_once(max_steps: u64, warmup_steps: u64) -> rmc_core::Result<RunResul
         state,
         &mut rng,
         &mut kernel,
-        NoopMeasurement,
+        NullMeasurement,
         measured_params(max_steps),
         &mut progress,
     )?;

@@ -2,8 +2,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use rmc_core::mc::{
-    run_parallel, run_parallel_full, run_parallel_in_pool, Measurement, MetropolisKernel,
-    ParallelConfig, SimulationParams, SingleUpdateSet, Update, UpdateSet,
+    run_parallel, run_parallel_full, run_parallel_in_pool, run_plan_full, Measurement,
+    MetropolisKernel, ParallelConfig, RunPlan, SimulationParams, SingleUpdateSet, Update,
+    UpdateSet,
 };
 use rmc_core::random::{ChainId, SeedSource};
 
@@ -150,6 +151,51 @@ fn run_parallel_full_returns_final_kernels() {
 }
 
 #[test]
+fn run_plan_full_runs_warmup_before_measurement() {
+    let (stats, total_final_value, kernels, states) = run_plan_full(
+        RunPlan {
+            chains: 2,
+            seed: SeedSource::new(123),
+            warmup: SimulationParams {
+                max_steps: 3,
+                steps_per_cycle: 1,
+                cycles_per_check: 1,
+            },
+            main: SimulationParams {
+                max_steps: 5,
+                steps_per_cycle: 1,
+                cycles_per_check: 1,
+            },
+        },
+        |_chain| {
+            (
+                0_u64,
+                MetropolisKernel::new(SingleUpdateSet::new(StateIncrementUpdate)),
+            )
+        },
+        |_chain, state| {
+            assert_eq!(*state, 3);
+            (
+                MetropolisKernel::new(SingleUpdateSet::new(StateIncrementUpdate)),
+                StateMeasurement,
+            )
+        },
+    )
+    .unwrap();
+
+    assert_eq!(stats.steps_done, 10);
+    assert_eq!(total_final_value, 16);
+    assert_eq!(states, vec![8, 8]);
+    assert_eq!(
+        kernels
+            .iter()
+            .map(|kernel| kernel.updates().stats()[0].nprops)
+            .sum::<u64>(),
+        10
+    );
+}
+
+#[test]
 fn run_parallel_is_reproducible_across_thread_counts() {
     let config = ParallelConfig {
         chains: 16,
@@ -193,4 +239,30 @@ fn probabilistic_chain(
         MetropolisKernel::new(SingleUpdateSet::new(update)),
         measurement,
     )
+}
+
+struct StateIncrementUpdate;
+
+impl Update<u64> for StateIncrementUpdate {
+    fn attempt<R: rand::Rng + ?Sized>(&mut self, _state: &mut u64, _rng: &mut R) -> f64 {
+        1.0
+    }
+
+    fn accept(&mut self, state: &mut u64) {
+        *state += 1;
+    }
+}
+
+struct StateMeasurement;
+
+impl Measurement<u64> for StateMeasurement {
+    type Output = u64;
+
+    fn measure(&mut self, state: &u64) {
+        assert!(*state >= 4);
+    }
+
+    fn finish(self) -> Self::Output {
+        8
+    }
 }

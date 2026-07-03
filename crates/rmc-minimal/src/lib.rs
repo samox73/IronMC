@@ -153,17 +153,6 @@ impl Measurement<MinimalState> for MinimalMeasurement {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default)]
-pub struct NoopMeasurement;
-
-impl Measurement<MinimalState> for NoopMeasurement {
-    type Output = ();
-
-    fn measure(&mut self, _state: &MinimalState) {}
-
-    fn finish(self) -> Self::Output {}
-}
-
 pub fn build_full() -> Result<WeightedUpdateSet<MinimalUpdate>> {
     WeightedUpdateSet::new(vec![
         WeightedUpdate::new(MinimalUpdate::Gaussian(GaussianShift::new(1.0)), 1.0),

@@ -2,13 +2,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use indicatif::{MultiProgress, ProgressBar};
-use rayon::prelude::*;
 use rmc_core::mc::{
-    run_parallel_full, run_parallel_full_with_callbacks, run_typed, run_typed_with_callbacks,
-    IndicatifProgress, MetropolisKernel, ParallelConfig, SimulationStats, WeightedUpdateSet,
+    run_plan_full, run_plan_full_with_callbacks, run_typed, IndicatifProgress, MetropolisKernel,
+    NullMeasurement, RunPlan, SimulationStats, WeightedUpdateSet,
 };
 use rmc_core::random::{ChainId, DefaultRng, SeedSource};
-use rmc_core::Merge;
 use rmc_io::{load_payload_json, save_payload_json};
 
 use crate::config::RunConfig;
@@ -153,36 +151,22 @@ pub fn build_chain(
     }
 }
 
-pub fn run_single(cfg: &RunConfig) -> AppResult<RunOutput> {
-    let mut rng = SeedSource::new(cfg.seed).rng_for(ChainId(0));
-    let mut state = build_diagram(cfg);
-    if cfg.warmup_steps > 0 {
-        let mut warmup_kernel = build_kernel()?;
-        let (warm_state, _warm_stats, _warm_output) = run_typed(
-            state,
-            &mut rng,
-            &mut warmup_kernel,
-            NoopMeasurement,
-            cfg.warmup_params(),
-        )?;
-        state = warm_state;
+fn build_warmup_chain(cfg: RunConfig) -> impl Fn(ChainId) -> (Diagram, PolaronKernel) {
+    move |_chain| {
+        let diagram = build_diagram(&cfg);
+        let kernel = build_kernel().expect("default polaron update set must be valid");
+        (diagram, kernel)
     }
+}
 
-    let mut kernel = build_kernel()?;
-    let measurement = build_measurement(cfg, &state);
-    let (final_state, stats, measurement) = run_typed(
-        state,
-        &mut rng,
-        &mut kernel,
-        measurement,
-        cfg.simulation_params(),
-    )?;
-    Ok(RunOutput {
-        stats,
-        measurement,
-        final_state: Some(final_state),
-        update_stats: update_stats::collect(&kernel),
-    })
+fn build_main_chain(
+    cfg: RunConfig,
+) -> impl Fn(ChainId, &Diagram) -> (PolaronKernel, PolaronMeasurement) {
+    move |_chain, diagram| {
+        let kernel = build_kernel().expect("default polaron update set must be valid");
+        let measurement = build_measurement(&cfg, diagram);
+        (kernel, measurement)
+    }
 }
 
 pub fn run_from_config(cfg: &RunConfig) -> AppResult<RunOutput> {
@@ -205,7 +189,7 @@ pub fn run_bench(cfg: &RunConfig) -> AppResult<BenchReport> {
             state,
             &mut rng,
             &mut warmup_kernel,
-            NoopMeasurement,
+            NullMeasurement,
             cfg.warmup_params(),
         )?;
         warmup_secs = t.elapsed().as_secs_f64();
@@ -244,188 +228,55 @@ pub fn run_bench(cfg: &RunConfig) -> AppResult<BenchReport> {
 }
 
 pub fn run_from_config_with_progress(cfg: &RunConfig, show_progress: bool) -> AppResult<RunOutput> {
-    if cfg.chains <= 1 {
-        if show_progress {
-            run_single_with_progress(cfg)
-        } else {
-            run_single(cfg)
-        }
-    } else {
-        if cfg.warmup_steps == 0 {
-            return run_parallel_without_warmup(cfg, show_progress);
-        }
-        let outputs = if show_progress {
-            let multi = MultiProgress::new();
-            (0..cfg.chains)
-                .into_par_iter()
-                .map(|chain| {
-                    run_single_chain_with_id_and_progress_in_multi(cfg, ChainId(chain), &multi)
-                        .map_err(|err| err.to_string())
-                })
-                .collect::<Vec<_>>()
-        } else {
-            (0..cfg.chains)
-                .into_par_iter()
-                .map(|chain| {
-                    run_single_chain_with_id(cfg, ChainId(chain)).map_err(|err| err.to_string())
-                })
-                .collect::<Vec<_>>()
-        };
-        let mut successful = Vec::with_capacity(outputs.len());
-        for output in outputs {
-            successful.push(output.map_err(|err| -> Box<dyn std::error::Error> { err.into() })?);
-        }
-        merge_outputs(successful)
-    }
-}
-
-fn run_parallel_without_warmup(cfg: &RunConfig, show_progress: bool) -> AppResult<RunOutput> {
-    let config = ParallelConfig {
+    let plan = RunPlan {
         chains: cfg.chains,
         seed: SeedSource::new(cfg.seed),
-        params: cfg.simulation_params(),
+        warmup: cfg.warmup_params(),
+        main: cfg.simulation_params(),
     };
-    let build = build_chain(cfg.clone());
+    let build_warmup = build_warmup_chain(cfg.clone());
+    let build_main = build_main_chain(cfg.clone());
 
-    let (stats, measurement, kernels) = if show_progress {
-        let multi = MultiProgress::new();
-        run_parallel_full_with_callbacks(config, build, |chain| {
-            progress_callback(
-                cfg.max_steps,
-                format!("chain {}", chain.0),
-                format!("chain {} done", chain.0),
-                Some(&multi),
-            )
-        })?
+    let (stats, measurement, kernels, states) = if show_progress {
+        let multi = (cfg.chains > 1).then(MultiProgress::new);
+        run_plan_full_with_callbacks(
+            plan,
+            build_warmup,
+            build_main,
+            |chain| {
+                progress_callback(
+                    cfg.warmup_steps,
+                    if cfg.chains > 1 {
+                        format!("warmup {}", chain.0)
+                    } else {
+                        "warmup".to_string()
+                    },
+                    if cfg.chains > 1 {
+                        format!("warmup {} done", chain.0)
+                    } else {
+                        "warmup done".to_string()
+                    },
+                    multi.as_ref(),
+                )
+            },
+            |chain| {
+                progress_callback(
+                    cfg.max_steps,
+                    format!("chain {}", chain.0),
+                    format!("chain {} done", chain.0),
+                    multi.as_ref(),
+                )
+            },
+        )?
     } else {
-        run_parallel_full(config, build)?
+        run_plan_full(plan, build_warmup, build_main)?
     };
 
     Ok(RunOutput {
         stats,
         measurement,
-        final_state: None,
+        final_state: (cfg.chains == 1).then(|| states.into_iter().next().unwrap()),
         update_stats: update_stats::merge(kernels.iter().map(update_stats::collect).collect()),
-    })
-}
-
-pub fn run_single_with_progress(cfg: &RunConfig) -> AppResult<RunOutput> {
-    let mut rng = SeedSource::new(cfg.seed).rng_for(ChainId(0));
-    let mut state = build_diagram(cfg);
-    if cfg.warmup_steps > 0 {
-        let mut warmup_kernel = build_kernel()?;
-        let mut callbacks = progress_callback(cfg.warmup_steps, "warmup", "warmup done", None);
-        let (warm_state, _warm_stats, _warm_output) = run_typed_with_callbacks(
-            state,
-            &mut rng,
-            &mut warmup_kernel,
-            NoopMeasurement,
-            cfg.warmup_params(),
-            &mut callbacks,
-        )?;
-        state = warm_state;
-    }
-
-    let mut kernel = build_kernel()?;
-    let measurement = build_measurement(cfg, &state);
-    let mut callbacks = progress_callback(cfg.max_steps, "chain 0", "chain 0 done", None);
-    let (final_state, stats, measurement) = run_typed_with_callbacks(
-        state,
-        &mut rng,
-        &mut kernel,
-        measurement,
-        cfg.simulation_params(),
-        &mut callbacks,
-    )?;
-    Ok(RunOutput {
-        stats,
-        measurement,
-        final_state: Some(final_state),
-        update_stats: update_stats::collect(&kernel),
-    })
-}
-
-fn run_single_chain_with_id(cfg: &RunConfig, chain: ChainId) -> AppResult<RunOutput> {
-    let mut chain_cfg = cfg.clone();
-    chain_cfg.chains = 1;
-    let mut rng = SeedSource::new(cfg.seed).rng_for(chain);
-    let mut state = build_diagram(&chain_cfg);
-    if chain_cfg.warmup_steps > 0 {
-        let mut warmup_kernel = build_kernel()?;
-        let (warm_state, _warm_stats, _warm_output) = run_typed(
-            state,
-            &mut rng,
-            &mut warmup_kernel,
-            NoopMeasurement,
-            chain_cfg.warmup_params(),
-        )?;
-        state = warm_state;
-    }
-    let mut kernel = build_kernel()?;
-    let measurement = build_measurement(&chain_cfg, &state);
-    let (_final_state, stats, measurement) = run_typed(
-        state,
-        &mut rng,
-        &mut kernel,
-        measurement,
-        chain_cfg.simulation_params(),
-    )?;
-    Ok(RunOutput {
-        stats,
-        measurement,
-        final_state: None,
-        update_stats: update_stats::collect(&kernel),
-    })
-}
-
-fn run_single_chain_with_id_and_progress_in_multi(
-    cfg: &RunConfig,
-    chain: ChainId,
-    multi: &MultiProgress,
-) -> AppResult<RunOutput> {
-    let mut chain_cfg = cfg.clone();
-    chain_cfg.chains = 1;
-    let mut rng = SeedSource::new(cfg.seed).rng_for(chain);
-    let mut state = build_diagram(&chain_cfg);
-    if chain_cfg.warmup_steps > 0 {
-        let mut warmup_kernel = build_kernel()?;
-        let mut callbacks = progress_callback(
-            chain_cfg.warmup_steps,
-            format!("warmup {}", chain.0),
-            format!("warmup {} done", chain.0),
-            Some(multi),
-        );
-        let (warm_state, _warm_stats, _warm_output) = run_typed_with_callbacks(
-            state,
-            &mut rng,
-            &mut warmup_kernel,
-            NoopMeasurement,
-            chain_cfg.warmup_params(),
-            &mut callbacks,
-        )?;
-        state = warm_state;
-    }
-    let mut kernel = build_kernel()?;
-    let measurement = build_measurement(&chain_cfg, &state);
-    let mut callbacks = progress_callback(
-        chain_cfg.max_steps,
-        format!("chain {}", chain.0),
-        format!("chain {} done", chain.0),
-        Some(multi),
-    );
-    let (_final_state, stats, measurement) = run_typed_with_callbacks(
-        state,
-        &mut rng,
-        &mut kernel,
-        measurement,
-        chain_cfg.simulation_params(),
-        &mut callbacks,
-    )?;
-    Ok(RunOutput {
-        stats,
-        measurement,
-        final_state: None,
-        update_stats: update_stats::collect(&kernel),
     })
 }
 
@@ -442,25 +293,6 @@ fn progress_callback(
     bar.set_style(rmc_core::mc::default_progress_style());
     bar.set_prefix(label.into());
     IndicatifProgress::new(bar).with_finish_message(finish_message)
-}
-
-fn merge_outputs(outputs: Vec<RunOutput>) -> AppResult<RunOutput> {
-    let mut merged: Option<RunOutput> = None;
-    for output in outputs {
-        merged = Some(match merged {
-            Some(acc) => RunOutput {
-                stats: acc.stats.merge(output.stats),
-                measurement: acc.measurement.merge(output.measurement),
-                final_state: None,
-                update_stats: update_stats::merge(vec![acc.update_stats, output.update_stats]),
-            },
-            None => RunOutput {
-                final_state: None,
-                ..output
-            },
-        });
-    }
-    merged.ok_or_else(|| "no chains were run".into())
 }
 
 pub fn save_checkpoint(path: impl AsRef<Path>, payload: &CheckpointPayload) -> AppResult<()> {
@@ -560,17 +392,6 @@ pub fn write_results(
 fn write_json<T: serde::Serialize>(path: PathBuf, value: &T) -> AppResult<()> {
     fs::write(path, serde_json::to_vec_pretty(value)?)?;
     Ok(())
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-struct NoopMeasurement;
-
-impl rmc_core::mc::Measurement<Diagram> for NoopMeasurement {
-    type Output = ();
-
-    fn measure(&mut self, _state: &Diagram) {}
-
-    fn finish(self) -> Self::Output {}
 }
 
 #[allow(dead_code)]

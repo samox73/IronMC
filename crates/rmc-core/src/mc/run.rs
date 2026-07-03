@@ -81,6 +81,18 @@ pub struct NoopCallbacks;
 
 impl RunCallbacks<SimulationCtx> for NoopCallbacks {}
 
+/// Measurement that ignores every cycle and returns `()`.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct NullMeasurement;
+
+impl<State> Measurement<State> for NullMeasurement {
+    type Output = ();
+
+    fn measure(&mut self, _state: &State) {}
+
+    fn finish(self) -> Self::Output {}
+}
+
 /// The single MC run loop shared by every entry point.
 ///
 /// It steps the `kernel` against `state`, invokes `measure_cycle(state)` once per cycle, fires
