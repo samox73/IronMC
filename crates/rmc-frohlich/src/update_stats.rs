@@ -124,14 +124,14 @@ mod tests {
         assert_eq!(
             names,
             [
-                "change_tau",
-                "change_internal_tau",
-                "add_phonon",
-                "remove_phonon",
-                "rescale_diagram",
-                "change_internal_q_modulus",
-                "change_internal_q_direction",
-                "change_topology",
+                "ChangeTau",
+                "ChangeInternalTau",
+                "AddPhonon",
+                "RemovePhonon",
+                "RescaleDiagram",
+                "ChangeQModulus",
+                "ChangeQDirection",
+                "ChangeTopology",
             ]
         );
     }

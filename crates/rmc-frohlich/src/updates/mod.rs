@@ -7,7 +7,8 @@ use std::f64::consts::PI;
 use nalgebra::{Rotation3, Vector3};
 use rand::Rng;
 use rand_distr::{Distribution, Normal};
-use rmc_core::mc::{Update, WeightedUpdate, WeightedUpdateSet};
+use rmc_core::dispatch_update;
+use rmc_core::mc::{WeightedUpdate, WeightedUpdateSet};
 use rmc_core::random::{safe_exponential_sample, uniform_index};
 use rmc_core::Result;
 use slotmap::Key;
@@ -16,58 +17,17 @@ use crate::diagram::VKey;
 use crate::diagram::{phi_from_cartesian, spherical_to_cartesian, theta_from_cartesian, Diagram};
 use phonon::{AddPhonon, RemovePhonon};
 
-#[derive(Clone, Debug)]
-pub enum PolaronUpdate {
-    ChangeTau(ChangeTau),
-    ChangeInternalTau(ChangeInternalTau),
-    AddPhonon(AddPhonon),
-    RemovePhonon(RemovePhonon),
-    RescaleDiagram(RescaleDiagram),
-    ChangeQModulus(ChangeQModulus),
-    ChangeQDirection(ChangeQDirection),
-    ChangeTopology(ChangeTopology),
-}
-
-impl PolaronUpdate {
-    pub fn name(&self) -> &'static str {
-        match self {
-            Self::ChangeTau(_) => "change_tau",
-            Self::ChangeInternalTau(_) => "change_internal_tau",
-            Self::AddPhonon(_) => "add_phonon",
-            Self::RemovePhonon(_) => "remove_phonon",
-            Self::RescaleDiagram(_) => "rescale_diagram",
-            Self::ChangeQModulus(_) => "change_internal_q_modulus",
-            Self::ChangeQDirection(_) => "change_internal_q_direction",
-            Self::ChangeTopology(_) => "change_topology",
-        }
-    }
-}
-
-impl Update<Diagram> for PolaronUpdate {
-    fn attempt<R: Rng + ?Sized>(&mut self, state: &mut Diagram, rng: &mut R) -> f64 {
-        match self {
-            Self::ChangeTau(update) => update.attempt(state, rng),
-            Self::ChangeInternalTau(update) => update.attempt(state, rng),
-            Self::AddPhonon(update) => update.attempt(state, rng),
-            Self::RemovePhonon(update) => update.attempt(state, rng),
-            Self::RescaleDiagram(update) => update.attempt(state, rng),
-            Self::ChangeQModulus(update) => update.attempt(state, rng),
-            Self::ChangeQDirection(update) => update.attempt(state, rng),
-            Self::ChangeTopology(update) => update.attempt(state, rng),
-        }
-    }
-
-    fn accept(&mut self, state: &mut Diagram) {
-        match self {
-            Self::ChangeTau(update) => update.accept(state),
-            Self::ChangeInternalTau(update) => update.accept(state),
-            Self::AddPhonon(update) => update.accept(state),
-            Self::RemovePhonon(update) => update.accept(state),
-            Self::RescaleDiagram(update) => update.accept(state),
-            Self::ChangeQModulus(update) => update.accept(state),
-            Self::ChangeQDirection(update) => update.accept(state),
-            Self::ChangeTopology(update) => update.accept(state),
-        }
+dispatch_update! {
+    #[derive(Clone, Debug)]
+    pub enum PolaronUpdate<Diagram> {
+        ChangeTau(ChangeTau),
+        ChangeInternalTau(ChangeInternalTau),
+        AddPhonon(AddPhonon),
+        RemovePhonon(RemovePhonon),
+        RescaleDiagram(RescaleDiagram),
+        ChangeQModulus(ChangeQModulus),
+        ChangeQDirection(ChangeQDirection),
+        ChangeTopology(ChangeTopology),
     }
 }
 

@@ -1,3 +1,4 @@
+use rmc_core::dispatch_update;
 use rmc_core::mc::{
     run_parallel, run_typed, Measurement, MetropolisKernel, ParallelConfig, SimulationParams,
     SingleUpdateSet, Update, UpdateSet,
@@ -24,6 +25,30 @@ impl Update<CounterState> for AddUpdate {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+struct RejectUpdate;
+
+impl Update<CounterState> for RejectUpdate {
+    fn attempt<R: rand::Rng + ?Sized>(&mut self, _state: &mut CounterState, _rng: &mut R) -> f64 {
+        0.0
+    }
+
+    fn accept(&mut self, _state: &mut CounterState) {}
+
+    fn reject(&mut self, state: &mut CounterState) {
+        state.value -= 1;
+    }
+}
+
+dispatch_update! {
+    #[derive(Clone, Copy, Debug)]
+    enum CounterUpdate<CounterState> {
+        Add(AddUpdate),
+        Reject(RejectUpdate),
+    }
+    ; reject
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 struct CounterMeasurement {
     samples: u64,
@@ -41,6 +66,17 @@ impl Measurement<CounterState> for CounterMeasurement {
     fn finish(self) -> Self::Output {
         self.sum
     }
+}
+
+#[test]
+fn dispatch_update_macro_forwards_update_methods() {
+    let mut update = CounterUpdate::Reject(RejectUpdate);
+    let mut state = CounterState { value: 3 };
+
+    update.reject(&mut state);
+
+    assert_eq!(state, CounterState { value: 2 });
+    assert_eq!(CounterUpdate::Add(AddUpdate { delta: 1 }).name(), "Add");
 }
 
 #[test]

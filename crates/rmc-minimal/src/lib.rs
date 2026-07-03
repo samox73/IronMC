@@ -1,6 +1,7 @@
 use rand::Rng;
 use rand_distr::{Distribution, Normal};
-use rmc_core::mc::{Measurement, Update, WeightedUpdate, WeightedUpdateSet};
+use rmc_core::dispatch_update;
+use rmc_core::mc::{Measurement, WeightedUpdate, WeightedUpdateSet};
 use rmc_core::Result;
 use rmc_stats::{Accumulator, ScalarBlockMeans, ScalarJackknife};
 
@@ -23,37 +24,14 @@ impl MinimalState {
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum MinimalUpdate {
-    Gaussian(GaussianShift),
-    Uniform(UniformShift),
-    Mirror(Mirror),
-}
-
-impl Update<MinimalState> for MinimalUpdate {
-    fn attempt<R: Rng + ?Sized>(&mut self, state: &mut MinimalState, rng: &mut R) -> f64 {
-        match self {
-            Self::Gaussian(update) => update.attempt(state, rng),
-            Self::Uniform(update) => update.attempt(state, rng),
-            Self::Mirror(update) => update.attempt(state, rng),
-        }
+dispatch_update! {
+    #[derive(Clone, Debug)]
+    pub enum MinimalUpdate<MinimalState> {
+        Gaussian(GaussianShift),
+        Uniform(UniformShift),
+        Mirror(Mirror),
     }
-
-    fn accept(&mut self, state: &mut MinimalState) {
-        match self {
-            Self::Gaussian(update) => update.accept(state),
-            Self::Uniform(update) => update.accept(state),
-            Self::Mirror(update) => update.accept(state),
-        }
-    }
-
-    fn reject(&mut self, state: &mut MinimalState) {
-        match self {
-            Self::Gaussian(update) => update.reject(state),
-            Self::Uniform(update) => update.reject(state),
-            Self::Mirror(update) => update.reject(state),
-        }
-    }
+    ; reject
 }
 
 #[derive(Clone, Debug)]

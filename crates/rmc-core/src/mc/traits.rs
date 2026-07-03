@@ -26,6 +26,68 @@ pub trait Update<State> {
     fn reject(&mut self, _state: &mut State) {}
 }
 
+/// Define an enum wrapper that dispatches [`Update`] to its variants.
+///
+/// Add `; reject` when the wrapped updates need rollback forwarding. Without it, the generated
+/// impl uses [`Update::reject`]'s default no-op.
+#[macro_export]
+macro_rules! dispatch_update {
+    (
+        $(#[$meta:meta])*
+        $vis:vis enum $name:ident <$state:ty> {
+            $($variant:ident($update:ty) $(=> $label:expr)?),+ $(,)?
+        }
+        $(; $reject:ident)?
+    ) => {
+        $(#[$meta])*
+        $vis enum $name {
+            $($variant($update)),+
+        }
+
+        impl $name {
+            pub fn name(&self) -> &'static str {
+                match self {
+                    $(Self::$variant(_) => $crate::dispatch_update!(@name $variant $($label)?)),+
+                }
+            }
+        }
+
+        impl $crate::mc::Update<$state> for $name {
+            fn attempt<R: $crate::__rand::Rng + ?Sized>(
+                &mut self,
+                state: &mut $state,
+                rng: &mut R,
+            ) -> f64 {
+                match self {
+                    $(Self::$variant(update) => update.attempt(state, rng)),+
+                }
+            }
+
+            fn accept(&mut self, state: &mut $state) {
+                match self {
+                    $(Self::$variant(update) => update.accept(state)),+
+                }
+            }
+
+            $crate::dispatch_update!(@reject [$state] [$($variant),+] $($reject)?);
+        }
+    };
+    (@reject [$state:ty] [$($variant:ident),+] reject) => {
+        fn reject(&mut self, state: &mut $state) {
+            match self {
+                $(Self::$variant(update) => update.reject(state)),+
+            }
+        }
+    };
+    (@reject [$state:ty] [$($variant:ident),+]) => {};
+    (@name $variant:ident $label:expr) => {
+        $label
+    };
+    (@name $variant:ident) => {
+        stringify!($variant)
+    };
+}
+
 /// A per-cycle measurement of a chain's `State`, returning a typed `Output` by ownership.
 ///
 /// A stateless measurement is `Measurement<()>`. Results flow back through `finish` with no

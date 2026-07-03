@@ -14,4 +14,6 @@ pub mod scalar;
 
 pub use error::{Result, RmcError};
 pub use merge::Merge;
+#[doc(hidden)]
+pub use rand as __rand;
 pub use scalar::{SampleType, Scalar};
