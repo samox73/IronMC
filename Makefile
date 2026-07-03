@@ -37,11 +37,11 @@ run:
 bench: bench-compare-core bench-compare-minimal bench-compare-frohlich
 
 bench-core:
-	cargo bench-compare --bench hot_path --set-governor
+	cargo bench-compare --bench hot_path --dedicate-core
 
 bench-minimal:
-	cargo bench-compare --bin rmc-minimal --reps 10 --metric-regex 'steps/sec:\s*([\d.]+)' --progress-regex 'step (\d+)/(\d+)' --set-governor -- bare 3000000
-	cargo bench-compare --bin rmc-minimal --reps 10 --metric-regex 'steps/sec:\s*([\d.]+)' --progress-regex 'step (\d+)/(\d+)' --set-governor -- full 3000000
+	cargo bench-compare --bin rmc-minimal --reps 10 --metric-regex 'steps/sec:\s*([\d.]+)' --progress-regex 'step (\d+)/(\d+)' --dedicate-core -- bare 3000000
+	cargo bench-compare --bin rmc-minimal --reps 10 --metric-regex 'steps/sec:\s*([\d.]+)' --progress-regex 'step (\d+)/(\d+)' --dedicate-core -- full 3000000
 
 bench-frohlich:
-	cargo bench-compare --bin rmc-frohlich --reps 10 --metric-regex 'steps/sec:\s*([\d.]+)' --set-governor -- bench
+	cargo bench-compare --bin rmc-frohlich --reps 10 --metric-regex 'steps/sec:\s*([\d.]+)' --dedicate-core -- bench
