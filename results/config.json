@@ -14,8 +14,8 @@
   "fft_beta": 100.0,
   "seed": 8267165747609980501,
   "chains": 1,
-  "max_steps": 5000000,
-  "warmup_steps": 1000,
+  "max_steps": 100000,
+  "warmup_steps": 0,
   "steps_per_cycle": 5,
-  "cycles_per_check": 10000
+  "cycles_per_check": 1000000
 }

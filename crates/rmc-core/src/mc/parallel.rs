@@ -45,6 +45,24 @@ where
     M::Output: Merge + Send,
     B: Fn(ChainId) -> (State, K, M) + Send + Sync,
 {
+    run_parallel_impl(config, &build).map(|(stats, output, _kernels)| (stats, output))
+}
+
+/// Like [`run_parallel`], but also returns the final per-chain kernels in chain order.
+///
+/// This exposes update-set counters and other kernel-owned run state without requiring callers to
+/// reimplement the parallel chain orchestration.
+pub fn run_parallel_full<State, K, M, B>(
+    config: ParallelConfig,
+    build: B,
+) -> Result<(SimulationStats, M::Output, Vec<K>)>
+where
+    State: Send,
+    K: Kernel<State, crate::random::DefaultRng> + Send,
+    M: Measurement<State> + Send,
+    M::Output: Merge + Send,
+    B: Fn(ChainId) -> (State, K, M) + Send + Sync,
+{
     run_parallel_impl(config, &build)
 }
 
@@ -57,6 +75,25 @@ pub fn run_parallel_with_callbacks<State, K, M, B, C, CB>(
     build: B,
     callbacks: CB,
 ) -> Result<(SimulationStats, M::Output)>
+where
+    State: Send,
+    K: Kernel<State, crate::random::DefaultRng> + Send,
+    M: Measurement<State> + Send,
+    M::Output: Merge + Send,
+    B: Fn(ChainId) -> (State, K, M) + Send + Sync,
+    C: RunCallbacks<super::run::SimulationCtx> + Send,
+    CB: Fn(ChainId) -> C + Send + Sync,
+{
+    run_parallel_impl_with_callbacks(config, &build, &callbacks)
+        .map(|(stats, output, _kernels)| (stats, output))
+}
+
+/// Like [`run_parallel_full`], but constructs one callback value per chain.
+pub fn run_parallel_full_with_callbacks<State, K, M, B, C, CB>(
+    config: ParallelConfig,
+    build: B,
+    callbacks: CB,
+) -> Result<(SimulationStats, M::Output, Vec<K>)>
 where
     State: Send,
     K: Kernel<State, crate::random::DefaultRng> + Send,
@@ -83,6 +120,7 @@ where
     B: Fn(ChainId) -> (State, K, M) + Send + Sync,
 {
     pool.install(|| run_parallel_impl(config, &build))
+        .map(|(stats, output, _kernels)| (stats, output))
 }
 
 /// Like [`run_parallel_with_callbacks`] but executes inside the provided rayon thread pool.
@@ -102,12 +140,13 @@ where
     CB: Fn(ChainId) -> C + Send + Sync,
 {
     pool.install(|| run_parallel_impl_with_callbacks(config, &build, &callbacks))
+        .map(|(stats, output, _kernels)| (stats, output))
 }
 
 fn run_parallel_impl<State, K, M>(
     config: ParallelConfig,
     build: &(impl Fn(ChainId) -> (State, K, M) + Sync),
-) -> Result<(SimulationStats, M::Output)>
+) -> Result<(SimulationStats, M::Output, Vec<K>)>
 where
     State: Send,
     K: Kernel<State, crate::random::DefaultRng> + Send,
@@ -123,27 +162,31 @@ where
             let mut rng = config.seed.rng_for(chain_id);
             let (state, mut kernel, measurement) = build(chain_id);
             run_typed(state, &mut rng, &mut kernel, measurement, config.params)
-                .map(|(_state, stats, output)| (stats, output))
+                .map(|(_state, stats, output)| (stats, output, kernel))
         })
         .collect::<Vec<_>>();
 
     let mut merged: Option<(SimulationStats, M::Output)> = None;
+    let mut kernels = Vec::with_capacity(partials.len());
     for partial in partials {
-        let (stats, output) = partial?;
+        let (stats, output, kernel) = partial?;
+        kernels.push(kernel);
         merged = Some(match merged {
             Some((acc_stats, acc_output)) => (acc_stats.merge(stats), acc_output.merge(output)),
             None => (stats, output),
         });
     }
 
-    merged.ok_or_else(|| RmcError::InvalidState("parallel run produced no chains".to_string()))
+    merged
+        .map(|(stats, output)| (stats, output, kernels))
+        .ok_or_else(|| RmcError::InvalidState("parallel run produced no chains".to_string()))
 }
 
 fn run_parallel_impl_with_callbacks<State, K, M, C>(
     config: ParallelConfig,
     build: &(impl Fn(ChainId) -> (State, K, M) + Sync),
     callbacks: &(impl Fn(ChainId) -> C + Sync),
-) -> Result<(SimulationStats, M::Output)>
+) -> Result<(SimulationStats, M::Output, Vec<K>)>
 where
     State: Send,
     K: Kernel<State, crate::random::DefaultRng> + Send,
@@ -168,18 +211,22 @@ where
                 config.params,
                 &mut callbacks,
             )
-            .map(|(_state, stats, output)| (stats, output))
+            .map(|(_state, stats, output)| (stats, output, kernel))
         })
         .collect::<Vec<_>>();
 
     let mut merged: Option<(SimulationStats, M::Output)> = None;
+    let mut kernels = Vec::with_capacity(partials.len());
     for partial in partials {
-        let (stats, output) = partial?;
+        let (stats, output, kernel) = partial?;
+        kernels.push(kernel);
         merged = Some(match merged {
             Some((acc_stats, acc_output)) => (acc_stats.merge(stats), acc_output.merge(output)),
             None => (stats, output),
         });
     }
 
-    merged.ok_or_else(|| RmcError::InvalidState("parallel run produced no chains".to_string()))
+    merged
+        .map(|(stats, output)| (stats, output, kernels))
+        .ok_or_else(|| RmcError::InvalidState("parallel run produced no chains".to_string()))
 }

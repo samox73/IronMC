@@ -2,8 +2,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use rmc_core::mc::{
-    run_parallel, run_parallel_in_pool, Measurement, MetropolisKernel, ParallelConfig,
-    SimulationParams, SingleUpdateSet, Update,
+    run_parallel, run_parallel_full, run_parallel_in_pool, Measurement, MetropolisKernel,
+    ParallelConfig, SimulationParams, SingleUpdateSet, Update, UpdateSet,
 };
 use rmc_core::random::{ChainId, SeedSource};
 
@@ -108,6 +108,45 @@ fn run_parallel_rejects_zero_chains() {
     .unwrap_err();
 
     assert_eq!(err.to_string(), "invalid argument: chains must be > 0");
+}
+
+#[test]
+fn run_parallel_full_returns_final_kernels() {
+    let (stats, total_final_value, kernels) = run_parallel_full(
+        ParallelConfig {
+            chains: 3,
+            seed: SeedSource::new(123),
+            params: SimulationParams {
+                max_steps: 5,
+                steps_per_cycle: 1,
+                cycles_per_check: 1,
+            },
+        },
+        |_chain: ChainId| {
+            let value = Arc::new(AtomicU64::new(0));
+            let update = AtomicIncrementUpdate {
+                value: Arc::clone(&value),
+            };
+            let measurement = FinalValueMeasurement { value };
+            (
+                (),
+                MetropolisKernel::new(SingleUpdateSet::new(update)),
+                measurement,
+            )
+        },
+    )
+    .unwrap();
+
+    assert_eq!(stats.steps_done, 15);
+    assert_eq!(total_final_value, 15);
+    assert_eq!(kernels.len(), 3);
+    assert_eq!(
+        kernels
+            .iter()
+            .map(|kernel| kernel.updates().stats()[0].nprops)
+            .sum::<u64>(),
+        15
+    );
 }
 
 #[test]

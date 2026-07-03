@@ -8,8 +8,8 @@ mod traits;
 
 pub use kernel::MetropolisKernel;
 pub use parallel::{
-    run_parallel, run_parallel_in_pool, run_parallel_in_pool_with_callbacks,
-    run_parallel_with_callbacks, ParallelConfig,
+    run_parallel, run_parallel_full, run_parallel_full_with_callbacks, run_parallel_in_pool,
+    run_parallel_in_pool_with_callbacks, run_parallel_with_callbacks, ParallelConfig,
 };
 pub use progress::{default_progress_style, IndicatifProgress};
 pub use run::{

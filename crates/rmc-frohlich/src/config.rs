@@ -78,7 +78,11 @@ impl RunConfig {
     }
 
     pub fn load_json(path: impl AsRef<Path>) -> Result<Self, Box<dyn std::error::Error>> {
-        Ok(Self::from_json_str(&fs::read_to_string(path)?)?)
+        let path = path.as_ref();
+        let json = fs::read_to_string(path)
+            .map_err(|e| format!("failed to read config file '{}': {e}", path.display()))?;
+        Ok(Self::from_json_str(&json)
+            .map_err(|e| format!("failed to parse config file '{}': {e}", path.display()))?)
     }
 
     pub fn save_json(&self, path: impl AsRef<Path>) -> Result<(), Box<dyn std::error::Error>> {

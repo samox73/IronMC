@@ -1,108 +1,98 @@
 {
   "summary": {
-    "steps_done": 5000000,
-    "cycles_done": 1000000,
-    "sample_count": 1000000,
+    "steps_done": 100000,
+    "cycles_done": 20000,
+    "sample_count": 20000,
     "chains": 1,
     "energy": {
-      "mean": -1.02514945773433,
-      "stderr": 0.003477107557521147
+      "mean": -1.022996570574445,
+      "stderr": 0.01315359979340816
     },
     "quasiparticle_weight": {
-      "mean": 0.5831410932826543,
-      "stderr": 0.0014284227424223247
+      "mean": 0.572689236730895,
+      "stderr": 0.007179645821396275
     },
     "target_energy": -1.013,
     "target_quasiparticle_weight": 0.59,
-    "energy_delta": -0.012149457734330182,
-    "quasiparticle_weight_delta": -0.006858906717345681,
-    "zeroth_mean": 0.483172,
-    "mean_order": 0.847978,
+    "energy_delta": -0.00999657057444514,
+    "quasiparticle_weight_delta": -0.017310763269104967,
+    "zeroth_mean": 0.4984,
+    "mean_order": 0.8313,
     "finite_selfenergy_bins": 4000,
     "total_selfenergy_bins": 4000,
-    "final_energy_estimate": -1.023614477833187,
+    "final_energy_estimate": -0.9407372491108047,
     "energy_estimate_history": [
       -1.0168,
-      -0.9547615494042522,
-      -1.034218756892345,
-      -1.0029247061404103,
-      -0.9951037373523706,
-      -0.9408947449456977,
-      -1.0396648263166803,
-      -1.003190044550507,
-      -1.044797293831158,
-      -0.993911609413308,
-      -1.0157715397442069,
-      -1.0155991812956517,
-      -1.0431622436787455,
-      -1.0107693230100616,
-      -1.022569058777996,
-      -1.023614477833187
+      -1.0414128517810954,
+      -1.0100224778727005,
+      -0.9914299497857959,
+      -1.0054225664339147,
+      -0.9407372491108047
     ],
     "update_stats": [
       {
         "name": "change_tau",
         "weight": 1.0,
-        "proposed": 625303,
+        "proposed": 12519,
         "impossible": 0,
-        "accepted": 625303,
+        "accepted": 12519,
         "acc_ratio": 1.0
       },
       {
         "name": "change_internal_tau",
         "weight": 1.0,
-        "proposed": 624961,
+        "proposed": 12589,
         "impossible": 0,
-        "accepted": 93110,
-        "acc_ratio": 0.14898529668251298
+        "accepted": 1847,
+        "acc_ratio": 0.14671538644848678
       },
       {
         "name": "add_phonon",
         "weight": 1.0,
-        "proposed": 625191,
+        "proposed": 12530,
         "impossible": 0,
-        "accepted": 195217,
-        "acc_ratio": 0.312251775857298
+        "accepted": 3963,
+        "acc_ratio": 0.3162809257781325
       },
       {
         "name": "remove_phonon",
         "weight": 1.0,
-        "proposed": 625125,
+        "proposed": 12507,
         "impossible": 0,
-        "accepted": 195212,
-        "acc_ratio": 0.3122767446510698
+        "accepted": 3963,
+        "acc_ratio": 0.31686255696809784
       },
       {
         "name": "rescale_diagram",
         "weight": 1.0,
-        "proposed": 625899,
+        "proposed": 12620,
         "impossible": 0,
-        "accepted": 70078,
-        "acc_ratio": 0.11196375134007244
+        "accepted": 1396,
+        "acc_ratio": 0.11061806656101426
       },
       {
         "name": "change_internal_q_modulus",
         "weight": 1.0,
-        "proposed": 624896,
+        "proposed": 12343,
         "impossible": 0,
-        "accepted": 163738,
-        "acc_ratio": 0.26202440086030315
+        "accepted": 3119,
+        "acc_ratio": 0.2526938345621
       },
       {
         "name": "change_internal_q_direction",
         "weight": 1.0,
-        "proposed": 625363,
+        "proposed": 12478,
         "impossible": 0,
-        "accepted": 92707,
-        "acc_ratio": 0.1482450992463577
+        "accepted": 1825,
+        "acc_ratio": 0.14625741304696266
       },
       {
         "name": "change_topology",
         "weight": 1.0,
-        "proposed": 623262,
+        "proposed": 12414,
         "impossible": 0,
-        "accepted": 43825,
-        "acc_ratio": 0.0703155334353771
+        "accepted": 939,
+        "acc_ratio": 0.07564040599323345
       }
     ]
   },

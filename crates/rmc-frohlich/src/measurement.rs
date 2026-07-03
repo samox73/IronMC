@@ -256,9 +256,10 @@ impl PolaronStats {
             // `exact` (binned) and `zeroth` (scalar) share the same global sample schedule and
             // per-batch counts, so a batch is non-empty for both or neither.
             for batch in 0..n_batches {
-                if let (Some(num_mean), Some(den_mean)) =
-                    (self.exact.batch_mean(bin, batch), self.zeroth.batch_mean(batch))
-                {
+                if let (Some(num_mean), Some(den_mean)) = (
+                    self.exact.batch_mean(bin, batch),
+                    self.zeroth.batch_mean(batch),
+                ) {
                     batch_num.push(num_mean);
                     batch_den.push(den_mean);
                 }
@@ -571,7 +572,11 @@ mod tests {
                     "batch mean mismatch at bin {bin}, batch {batch}"
                 );
             }
-            assert_eq!(binned.bin_mean(bin), per_bin[bin].mean(), "bin mean at {bin}");
+            assert_eq!(
+                binned.bin_mean(bin),
+                per_bin[bin].mean(),
+                "bin mean at {bin}"
+            );
         }
     }
 

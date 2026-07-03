@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 use indicatif::{MultiProgress, ProgressBar};
 use rayon::prelude::*;
 use rmc_core::mc::{
-    run_typed, run_typed_with_callbacks, IndicatifProgress, MetropolisKernel, SimulationStats,
-    WeightedUpdateSet,
+    run_parallel_full, run_parallel_full_with_callbacks, run_typed, run_typed_with_callbacks,
+    IndicatifProgress, MetropolisKernel, ParallelConfig, SimulationStats, WeightedUpdateSet,
 };
 use rmc_core::random::{ChainId, DefaultRng, SeedSource};
 use rmc_core::Merge;
@@ -251,6 +251,9 @@ pub fn run_from_config_with_progress(cfg: &RunConfig, show_progress: bool) -> Ap
             run_single(cfg)
         }
     } else {
+        if cfg.warmup_steps == 0 {
+            return run_parallel_without_warmup(cfg, show_progress);
+        }
         let outputs = if show_progress {
             let multi = MultiProgress::new();
             (0..cfg.chains)
@@ -274,6 +277,36 @@ pub fn run_from_config_with_progress(cfg: &RunConfig, show_progress: bool) -> Ap
         }
         merge_outputs(successful)
     }
+}
+
+fn run_parallel_without_warmup(cfg: &RunConfig, show_progress: bool) -> AppResult<RunOutput> {
+    let config = ParallelConfig {
+        chains: cfg.chains,
+        seed: SeedSource::new(cfg.seed),
+        params: cfg.simulation_params(),
+    };
+    let build = build_chain(cfg.clone());
+
+    let (stats, measurement, kernels) = if show_progress {
+        let multi = MultiProgress::new();
+        run_parallel_full_with_callbacks(config, build, |chain| {
+            progress_callback(
+                cfg.max_steps,
+                format!("chain {}", chain.0),
+                format!("chain {} done", chain.0),
+                Some(&multi),
+            )
+        })?
+    } else {
+        run_parallel_full(config, build)?
+    };
+
+    Ok(RunOutput {
+        stats,
+        measurement,
+        final_state: None,
+        update_stats: update_stats::merge(kernels.iter().map(update_stats::collect).collect()),
+    })
 }
 
 pub fn run_single_with_progress(cfg: &RunConfig) -> AppResult<RunOutput> {
