@@ -512,6 +512,8 @@ pub struct ScalarAutocorrelation {
     pair_sum_right: Vec<f64>,
     pair_sum_products: Vec<f64>,
     history: Vec<f64>,
+    #[cfg_attr(feature = "serde", serde(default))]
+    history_head: usize,
 }
 
 impl ScalarAutocorrelation {
@@ -527,6 +529,7 @@ impl ScalarAutocorrelation {
             pair_sum_right: vec![0.0; max_lag],
             pair_sum_products: vec![0.0; max_lag],
             history: Vec::with_capacity(max_lag),
+            history_head: 0,
         }
     }
 
@@ -537,6 +540,14 @@ impl ScalarAutocorrelation {
             acc.accumulate(sample);
         }
         acc
+    }
+
+    fn active_history_head(&self) -> usize {
+        if self.history.len() < self.max_lag && self.history_head == 0 {
+            self.history.len()
+        } else {
+            self.history_head % self.max_lag
+        }
     }
 
     /// Largest lag tracked by this accumulator.
@@ -641,8 +652,13 @@ impl Accumulator<f64> for ScalarAutocorrelation {
 
     fn accumulate(&mut self, sample: f64) {
         let available_lags = self.max_lag.min(self.history.len());
+        let history_head = if self.max_lag > 0 {
+            self.active_history_head()
+        } else {
+            0
+        };
         for lag in 1..=available_lags {
-            let previous = self.history[self.history.len() - lag];
+            let previous = self.history[(history_head + self.max_lag - lag) % self.max_lag];
             let idx = lag - 1;
             self.pair_counts[idx] += 1;
             self.pair_sum_left[idx] += previous;
@@ -655,10 +671,13 @@ impl Accumulator<f64> for ScalarAutocorrelation {
         self.sum_sq += sample * sample;
 
         if self.max_lag > 0 {
-            if self.history.len() == self.max_lag {
-                self.history.remove(0);
+            if self.history.len() < self.max_lag {
+                self.history.push(sample);
+                self.history_head = self.history.len() % self.max_lag;
+            } else {
+                self.history[history_head] = sample;
+                self.history_head = (history_head + 1) % self.max_lag;
             }
-            self.history.push(sample);
         }
     }
 }
@@ -687,6 +706,7 @@ impl Merge for ScalarAutocorrelation {
             pair_sum_right: vec![0.0; max_lag],
             pair_sum_products: vec![0.0; max_lag],
             history: Vec::with_capacity(max_lag),
+            history_head: 0,
         };
 
         for idx in 0..max_lag {

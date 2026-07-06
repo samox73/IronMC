@@ -4,7 +4,7 @@ Reviewed: all `.rs` sources in `crates/{rmc-core, rmc-stats, rmc-grids, rmc-nume
 
 Implementation status checked against the current tree:
 
-- Done: A1, U1, U3, A2, Q1, A4, Q6.
+- Done: P1, P2, A1, U1, U3, A2, Q1, A4, Q6.
 - Partial: U2. Core now has `RunPlan`/`run_plan_full` with warmup, progress callbacks, parallel merge, final kernels, and final states, and `rmc-frohlich` uses it. The generic results-directory writer proposed in the review is still app-local.
 - Not seen in the current tree: other table items beyond U1/Q6.
 
@@ -16,10 +16,12 @@ Implementation status checked against the current tree:
 
 **Issues.**
 
-- **[P1, MEDIUM]** `ScalarAutocorrelation::accumulate` is O(max_lag) *twice* per sample — `rmc-stats/src/lib.rs:643-651` (lag loop, inherent) plus `rmc-stats/src/lib.rs:659` `self.history.remove(0)`, which memmoves the whole history buffer on every sample once warm.
+- **[P1, MEDIUM, DONE]** `ScalarAutocorrelation::accumulate` is O(max_lag) *twice* per sample — `rmc-stats/src/lib.rs:643-651` (lag loop, inherent) plus `rmc-stats/src/lib.rs:659` `self.history.remove(0)`, which memmoves the whole history buffer on every sample once warm.
+  **Current status:** implemented. The history buffer now uses a fixed ring cursor (`history_head`) and overwrites the oldest sample once full, removing the per-sample `Vec::remove(0)` memmove while preserving merge semantics.
   **Fix:** replace the `Vec<f64>` history with a fixed ring buffer: keep `history: Vec<f64>` at capacity `max_lag`, add a `head: usize` cursor, index `previous` as `history[(head + max_lag - lag) % max_lag]`, and overwrite `history[head]` then `head = (head + 1) % max_lag`. This drops the memmove entirely and keeps merge semantics (clear = reset `len`/`head`). ~10 lines, no API change.
 
-- **[P2, MEDIUM]** The criterion bench does not cover the production hot path. `rmc-core/benches/hot_path.rs:69-117` benchmarks only `SingleUpdateSet` (one update, always-accept) and the dyn boxed set — but *both* real consumers (`rmc-minimal/src/lib.rs:167`, `rmc-frohlich/src/updates/mod.rs:74`) run `WeightedUpdateSet` with 3–8 enum variants. The costs that actually dominate a real step — `WeightedIndex::sample` (binary search + `gen_range`) at sets.rs:696, enum-match dispatch, and a per-cycle measurement accumulation — are unmeasured in criterion. The gap is partially compensated by the end-to-end `rmc-frohlich bench` subcommand and `rmc-minimal`, but those cannot attribute regressions to a specific layer.
+- **[P2, MEDIUM, DONE]** The criterion bench did not cover the production hot path. `rmc-core/benches/hot_path.rs` benchmarked only `SingleUpdateSet` (one update, always-accept) while both real consumers (`rmc-minimal/src/lib.rs:167`, `rmc-frohlich/src/updates/mod.rs:74`) run `WeightedUpdateSet` with 3–8 enum variants. The costs that actually dominate a real step — `WeightedIndex::sample`, enum-match dispatch, and a per-cycle measurement accumulation — were unmeasured in criterion. The gap was partially compensated by the end-to-end `rmc-frohlich bench` subcommand and `rmc-minimal`, but those cannot attribute regressions to a specific layer.
+  **Current status:** implemented. `hot_path.rs` now keeps the single-update baseline and adds `WeightedUpdateSet<enum{8 variants}>` plus the same weighted path with measurement every 5 steps.
   **Fix:** add two benches: (a) `WeightedUpdateSet<enum{8 variants}>` with a realistic accept/reject mix, and (b) the same run with a `ScalarBlockMeans`-style measurement at `steps_per_cycle = 5` (the production cadence). That makes the criterion suite able to catch regressions in the code paths the physics actually uses.
 
 - **[P3, LOW]** `IndicatifProgress::on_step` (`rmc-core/src/mc/progress.rs:47-53`) calls `bar.inc(delta)` on every MC step. indicatif throttles drawing but still does atomic position updates per call; at 10⁸–10⁹ steps this is measurable overhead in the default interactive path (`run_from_config_with_progress` is what `rmc-frohlich` `main` runs). The timed `run_bench` path avoids it, so benchmark numbers are clean.
@@ -124,8 +126,8 @@ Implementation status checked against the current tree:
 | #  | Status | Issue                                                                            | Severity | File                                                                | Fix effort                                     |
 |----|--------|----------------------------------------------------------------------------------|----------|---------------------------------------------------------------------|------------------------------------------------|
 | Q1 | ✅     | Round-robin batching → jackknife stderr underestimated for autocorrelated series | HIGH     | rmc-frohlich/src/measurement.rs:27,125                              | Implemented                                    |
-| P1 |        | `history.remove(0)` O(max_lag) memmove per autocorrelation sample                | MEDIUM   | rmc-stats/src/lib.rs:659                                            | Small (ring buffer, ~10 lines)                 |
-| P2 |        | Criterion bench misses `WeightedUpdateSet` + measurement, the real hot path      | MEDIUM   | rmc-core/benches/hot_path.rs                                        | Small (2 new benches)                          |
+| P1 | ✅     | `history.remove(0)` O(max_lag) memmove per autocorrelation sample                | MEDIUM   | rmc-stats/src/lib.rs:659                                            | Implemented                                    |
+| P2 | ✅     | Criterion bench misses `WeightedUpdateSet` + measurement, the real hot path      | MEDIUM   | rmc-core/benches/hot_path.rs                                        | Implemented                                    |
 | U1 | ✅     | Hand-written enum dispatch boilerplate per model (~30 lines × N methods)         | MEDIUM   | rmc-minimal/src/lib.rs:27-57; rmc-frohlich/src/updates/mod.rs:46-72 | Implemented                                    |
 | U2 | 🟡     | No app harness: warmup/progress/parallel-merge/results re-written per model      | MEDIUM   | rmc-frohlich/src/app.rs (whole file)                                | Core run plan done; generic results writer open |
 | U3 | ✅     | `run_parallel` cannot return kernels → per-update stats lost on parallel path    | MEDIUM   | rmc-core/src/mc/parallel.rs:119-127                                 | Implemented                                    |

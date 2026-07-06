@@ -27,14 +27,14 @@ MINIMAL_WARMUP     ?= 1000000
 TUNED_FLAGS        := RUSTFLAGS="-C target-cpu=native"
 
 .DEFAULT_GOAL := run
-.PHONY: run bench bench-compare-core bench-compare-minimal bench-compare-frohlich
+.PHONY: run bench bench-core bench-minimal bench-frohlich
 
 # Default: run the release build using input.json in the current directory.
 # Results are written to ./results (the binary's default output directory).
 run:
 	cargo run --release -p $(CRATE) -- input.json
 
-bench: bench-compare-core bench-compare-minimal bench-compare-frohlich
+bench: bench-core bench-minimal bench-frohlich
 
 bench-core:
 	cargo bench-compare --bench hot_path --dedicate-core
