@@ -2,7 +2,7 @@ use rand_core::RngCore;
 use rmc_core::mc::ResultSink;
 use rmc_core::{
     mc::{
-        run_typed, Measurement, MetropolisKernel, SimulationParams, SingleUpdateSet, Update,
+        run_chain, Measurement, MetropolisKernel, SimulationParams, SingleUpdateSet, Update,
         UpdateSet,
     },
     random::{ChainId, DefaultRng, Rng, SeedSource},
@@ -187,23 +187,25 @@ fn checkpointed_run_resumes_same_trajectory_as_uninterrupted_run() {
 
     let mut full_rng = seed.rng_for(ChainId(0));
     let mut full_kernel = MetropolisKernel::new(SingleUpdateSet::new(RandomWalkUpdate));
-    let (full_state, _full_stats, full_last) = run_typed(
+    let (full_state, _full_stats, full_last) = run_chain(
         0,
         &mut full_rng,
         &mut full_kernel,
         LastStateValue::default(),
         full_params,
+        rmc_core::mc::NoopCallbacks,
     )
     .unwrap();
 
     let mut split_rng = seed.rng_for(ChainId(0));
     let mut split_kernel = MetropolisKernel::new(SingleUpdateSet::new(RandomWalkUpdate));
-    let (split_state, _first_stats, _first_last) = run_typed(
+    let (split_state, _first_stats, _first_last) = run_chain(
         0,
         &mut split_rng,
         &mut split_kernel,
         LastStateValue::default(),
         first_params,
+        rmc_core::mc::NoopCallbacks,
     )
     .unwrap();
 
@@ -221,12 +223,13 @@ fn checkpointed_run_resumes_same_trajectory_as_uninterrupted_run() {
         mut rng,
         mut kernel,
     } = restored.into_payload();
-    let (resumed_state, _second_stats, resumed_last) = run_typed(
+    let (resumed_state, _second_stats, resumed_last) = run_chain(
         state,
         &mut rng,
         &mut kernel,
         LastStateValue::default(),
         second_params,
+        rmc_core::mc::NoopCallbacks,
     )
     .unwrap();
 
@@ -259,23 +262,25 @@ fn binary_checkpointed_run_resumes_same_trajectory_as_uninterrupted_run() {
 
     let mut full_rng = seed.rng_for(ChainId(0));
     let mut full_kernel = MetropolisKernel::new(SingleUpdateSet::new(RandomWalkUpdate));
-    let (full_state, _full_stats, full_last) = run_typed(
+    let (full_state, _full_stats, full_last) = run_chain(
         0,
         &mut full_rng,
         &mut full_kernel,
         LastStateValue::default(),
         full_params,
+        rmc_core::mc::NoopCallbacks,
     )
     .unwrap();
 
     let mut split_rng = seed.rng_for(ChainId(0));
     let mut split_kernel = MetropolisKernel::new(SingleUpdateSet::new(RandomWalkUpdate));
-    let (split_state, _first_stats, _first_last) = run_typed(
+    let (split_state, _first_stats, _first_last) = run_chain(
         0,
         &mut split_rng,
         &mut split_kernel,
         LastStateValue::default(),
         first_params,
+        rmc_core::mc::NoopCallbacks,
     )
     .unwrap();
 
@@ -293,12 +298,13 @@ fn binary_checkpointed_run_resumes_same_trajectory_as_uninterrupted_run() {
         mut rng,
         mut kernel,
     } = restored.into_payload();
-    let (resumed_state, _second_stats, resumed_last) = run_typed(
+    let (resumed_state, _second_stats, resumed_last) = run_chain(
         state,
         &mut rng,
         &mut kernel,
         LastStateValue::default(),
         second_params,
+        rmc_core::mc::NoopCallbacks,
     )
     .unwrap();
 

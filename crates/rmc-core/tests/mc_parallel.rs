@@ -2,9 +2,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use rmc_core::mc::{
-    run_parallel, run_parallel_full, run_parallel_in_pool, run_plan_full, Measurement,
-    MetropolisKernel, ParallelConfig, RunPlan, SimulationParams, SingleUpdateSet, Update,
-    UpdateSet,
+    Measurement, MetropolisKernel, Runner, SimulationParams, SingleUpdateSet, Update, UpdateSet,
 };
 use rmc_core::random::{ChainId, SeedSource};
 
@@ -51,98 +49,82 @@ impl Measurement<()> for FinalValueMeasurement {
 }
 
 #[test]
-fn run_parallel_merges_independent_chain_outputs() {
-    let (stats, total_final_value) = run_parallel(
-        ParallelConfig {
-            chains: 4,
-            seed: SeedSource::new(123),
-            params: SimulationParams {
-                max_steps: 5,
-                steps_per_cycle: 1,
-                cycles_per_check: 1,
-            },
-        },
-        |_chain: ChainId| {
-            let value = Arc::new(AtomicU64::new(0));
-            let update = AtomicIncrementUpdate {
-                value: Arc::clone(&value),
-            };
-            let measurement = FinalValueMeasurement { value };
-            (
-                (),
-                MetropolisKernel::new(SingleUpdateSet::new(update)),
-                measurement,
-            )
-        },
-    )
+fn runner_merges_independent_chain_outputs() {
+    let report = Runner::new(SeedSource::new(123), |_chain: ChainId| {
+        let value = Arc::new(AtomicU64::new(0));
+        let update = AtomicIncrementUpdate {
+            value: Arc::clone(&value),
+        };
+        let measurement = FinalValueMeasurement { value };
+        (
+            (),
+            MetropolisKernel::new(SingleUpdateSet::new(update)),
+            measurement,
+        )
+    })
+    .chains(4)
+    .run(SimulationParams {
+        max_steps: 5,
+        steps_per_cycle: 1,
+        cycles_per_check: 1,
+    })
     .unwrap();
 
-    assert_eq!(stats.steps_done, 20);
-    assert_eq!(stats.cycles_done, 20);
-    assert_eq!(total_final_value, 20);
+    assert_eq!(report.stats.steps_done, 20);
+    assert_eq!(report.stats.cycles_done, 20);
+    assert_eq!(report.output, 20);
 }
 
 #[test]
-fn run_parallel_rejects_zero_chains() {
-    let err = run_parallel::<
-        (),
-        MetropolisKernel<SingleUpdateSet<AtomicIncrementUpdate>>,
-        FinalValueMeasurement,
-        _,
-    >(
-        ParallelConfig {
-            chains: 0,
-            seed: SeedSource::new(123),
-            params: SimulationParams::default(),
-        },
-        |_chain| {
-            let value = Arc::new(AtomicU64::new(0));
-            (
-                (),
-                MetropolisKernel::new(SingleUpdateSet::new(AtomicIncrementUpdate {
-                    value: Arc::clone(&value),
-                })),
-                FinalValueMeasurement { value },
-            )
-        },
-    )
-    .unwrap_err();
+fn runner_rejects_zero_chains() {
+    let err = match Runner::new(SeedSource::new(123), |_chain| {
+        let value = Arc::new(AtomicU64::new(0));
+        (
+            (),
+            MetropolisKernel::new(SingleUpdateSet::new(AtomicIncrementUpdate {
+                value: Arc::clone(&value),
+            })),
+            FinalValueMeasurement { value },
+        )
+    })
+    .chains(0)
+    .run(SimulationParams::default())
+    {
+        Ok(_) => panic!("zero chains should fail"),
+        Err(err) => err,
+    };
 
     assert_eq!(err.to_string(), "invalid argument: chains must be > 0");
 }
 
 #[test]
-fn run_parallel_full_returns_final_kernels() {
-    let (stats, total_final_value, kernels) = run_parallel_full(
-        ParallelConfig {
-            chains: 3,
-            seed: SeedSource::new(123),
-            params: SimulationParams {
-                max_steps: 5,
-                steps_per_cycle: 1,
-                cycles_per_check: 1,
-            },
-        },
-        |_chain: ChainId| {
-            let value = Arc::new(AtomicU64::new(0));
-            let update = AtomicIncrementUpdate {
-                value: Arc::clone(&value),
-            };
-            let measurement = FinalValueMeasurement { value };
-            (
-                (),
-                MetropolisKernel::new(SingleUpdateSet::new(update)),
-                measurement,
-            )
-        },
-    )
+fn runner_returns_final_kernels() {
+    let report = Runner::new(SeedSource::new(123), |_chain: ChainId| {
+        let value = Arc::new(AtomicU64::new(0));
+        let update = AtomicIncrementUpdate {
+            value: Arc::clone(&value),
+        };
+        let measurement = FinalValueMeasurement { value };
+        (
+            (),
+            MetropolisKernel::new(SingleUpdateSet::new(update)),
+            measurement,
+        )
+    })
+    .chains(3)
+    .run(SimulationParams {
+        max_steps: 5,
+        steps_per_cycle: 1,
+        cycles_per_check: 1,
+    })
     .unwrap();
 
-    assert_eq!(stats.steps_done, 15);
-    assert_eq!(total_final_value, 15);
-    assert_eq!(kernels.len(), 3);
+    assert_eq!(report.stats.steps_done, 15);
+    assert_eq!(report.output, 15);
+    assert_eq!(report.kernels.len(), 3);
     assert_eq!(
-        kernels
+        report
+            .kernels
             .iter()
             .map(|kernel| kernel.updates().stats()[0].nprops)
             .sum::<u64>(),
@@ -151,43 +133,33 @@ fn run_parallel_full_returns_final_kernels() {
 }
 
 #[test]
-fn run_plan_full_runs_warmup_before_measurement() {
-    let (stats, total_final_value, kernels, states) = run_plan_full(
-        RunPlan {
-            chains: 2,
-            seed: SeedSource::new(123),
-            warmup: SimulationParams {
-                max_steps: 3,
-                steps_per_cycle: 1,
-                cycles_per_check: 1,
-            },
-            main: SimulationParams {
-                max_steps: 5,
-                steps_per_cycle: 1,
-                cycles_per_check: 1,
-            },
-        },
-        |_chain| {
-            (
-                0_u64,
-                MetropolisKernel::new(SingleUpdateSet::new(StateIncrementUpdate)),
-            )
-        },
-        |_chain, state| {
-            assert_eq!(*state, 3);
-            (
-                MetropolisKernel::new(SingleUpdateSet::new(StateIncrementUpdate)),
-                StateMeasurement,
-            )
-        },
-    )
+fn runner_runs_warmup_before_measurement() {
+    let report = Runner::new(SeedSource::new(123), |_chain| {
+        (
+            0_u64,
+            MetropolisKernel::new(SingleUpdateSet::new(StateIncrementUpdate)),
+            StateMeasurement,
+        )
+    })
+    .chains(2)
+    .warmup(SimulationParams {
+        max_steps: 3,
+        steps_per_cycle: 1,
+        cycles_per_check: 1,
+    })
+    .run(SimulationParams {
+        max_steps: 5,
+        steps_per_cycle: 1,
+        cycles_per_check: 1,
+    })
     .unwrap();
 
-    assert_eq!(stats.steps_done, 10);
-    assert_eq!(total_final_value, 16);
-    assert_eq!(states, vec![8, 8]);
+    assert_eq!(report.stats.steps_done, 10);
+    assert_eq!(report.output, 16);
+    assert_eq!(report.states, vec![8, 8]);
     assert_eq!(
-        kernels
+        report
+            .kernels
             .iter()
             .map(|kernel| kernel.updates().stats()[0].nprops)
             .sum::<u64>(),
@@ -196,15 +168,11 @@ fn run_plan_full_runs_warmup_before_measurement() {
 }
 
 #[test]
-fn run_parallel_is_reproducible_across_thread_counts() {
-    let config = ParallelConfig {
-        chains: 16,
-        seed: SeedSource::new(0x5eed),
-        params: SimulationParams {
-            max_steps: 64,
-            steps_per_cycle: 8,
-            cycles_per_check: 1,
-        },
+fn runner_is_reproducible_across_thread_counts() {
+    let params = SimulationParams {
+        max_steps: 64,
+        steps_per_cycle: 8,
+        cycles_per_check: 1,
     };
 
     let one_thread = rayon::ThreadPoolBuilder::new()
@@ -216,10 +184,18 @@ fn run_parallel_is_reproducible_across_thread_counts() {
         .build()
         .unwrap();
 
-    let one = run_parallel_in_pool(&one_thread, config, probabilistic_chain).unwrap();
-    let four = run_parallel_in_pool(&four_threads, config, probabilistic_chain).unwrap();
+    let one = Runner::new(SeedSource::new(0x5eed), probabilistic_chain)
+        .chains(16)
+        .pool(&one_thread)
+        .run(params)
+        .unwrap();
+    let four = Runner::new(SeedSource::new(0x5eed), probabilistic_chain)
+        .chains(16)
+        .pool(&four_threads)
+        .run(params)
+        .unwrap();
 
-    assert_eq!(one, four);
+    assert_eq!(one.output, four.output);
 }
 
 fn probabilistic_chain(

@@ -151,7 +151,7 @@ where
 /// Run with sink measurements that emit named artifacts into `sink`.
 ///
 /// This path is output-only: measurements do not return Rust-native structured values. Use
-/// [`run_typed`] when typed results should flow back by ownership.
+/// [`run_chain`] when typed results should flow back by ownership.
 pub fn run_with_sink<State, R, K>(
     state: State,
     rng: &mut R,
@@ -163,73 +163,46 @@ pub fn run_with_sink<State, R, K>(
 where
     K: Kernel<State, R>,
 {
-    let mut callbacks = NoopCallbacks;
-    run_with_sink_and_callbacks(
+    struct SinkAdapter<'a, State>(&'a mut SinkMeasurementSet<State>);
+
+    impl<State> Measurement<State> for SinkAdapter<'_, State> {
+        type Output = ();
+
+        fn measure(&mut self, state: &State) {
+            self.0.measure_all(state)
+        }
+
+        fn finish(self) -> Self::Output {}
+    }
+
+    measurements.refresh_active();
+    let (state, stats, ()) = run_chain(
         state,
         rng,
         kernel,
-        measurements,
-        sink,
+        SinkAdapter(measurements),
         params,
-        &mut callbacks,
-    )
-}
-
-pub fn run_with_sink_and_callbacks<State, R, K, C>(
-    mut state: State,
-    rng: &mut R,
-    kernel: &mut K,
-    measurements: &mut SinkMeasurementSet<State>,
-    sink: &mut dyn ResultSink,
-    params: SimulationParams,
-    callbacks: &mut C,
-) -> Result<(State, SimulationStats)>
-where
-    K: Kernel<State, R>,
-    C: RunCallbacks<SimulationCtx>,
-{
-    measurements.refresh_active();
-    let stats = drive(&mut state, rng, kernel, params, callbacks, |state| {
-        measurements.measure_all(state)
-    })?;
+        NoopCallbacks,
+    )?;
     measurements.write_all(sink)?;
     Ok((state, stats))
 }
 
-/// Run with a typed measurement, returning the final `state`, run stats, and the measurement's
-/// `Output` by ownership (no `Any`/downcast).
-///
-/// This is the preferred entry point when callers need results. A stateless run passes `()` as the
-/// state; a stateful run passes an owned chain state such as a lattice or particle configuration.
-pub fn run_typed<State, R, K, M>(
-    state: State,
-    rng: &mut R,
-    kernel: &mut K,
-    measurement: M,
-    params: SimulationParams,
-) -> Result<(State, SimulationStats, M::Output)>
-where
-    K: Kernel<State, R>,
-    M: Measurement<State>,
-{
-    let mut callbacks = NoopCallbacks;
-    run_typed_with_callbacks(state, rng, kernel, measurement, params, &mut callbacks)
-}
-
-pub fn run_typed_with_callbacks<State, R, K, M, C>(
+/// Drive one chain to completion.
+pub fn run_chain<State, R, K, M, C>(
     mut state: State,
     rng: &mut R,
     kernel: &mut K,
     mut measurement: M,
     params: SimulationParams,
-    callbacks: &mut C,
+    mut callbacks: C,
 ) -> Result<(State, SimulationStats, M::Output)>
 where
     K: Kernel<State, R>,
     M: Measurement<State>,
     C: RunCallbacks<SimulationCtx>,
 {
-    let stats = drive(&mut state, rng, kernel, params, callbacks, |state| {
+    let stats = drive(&mut state, rng, kernel, params, &mut callbacks, |state| {
         measurement.measure(state)
     })?;
     Ok((state, stats, measurement.finish()))

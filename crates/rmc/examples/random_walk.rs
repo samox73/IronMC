@@ -6,7 +6,7 @@
 //! `Arc<AtomicI64>` or other shared-mutable-state in the hot path, even for the parallel run.
 
 use rmc::mc::{
-    run_parallel, run_typed, Measurement, MetropolisKernel, ParallelConfig, SimulationParams,
+    run_chain, Measurement, MetropolisKernel, NoopCallbacks, Runner, SimulationParams,
     SingleUpdateSet, Update,
 };
 use rmc::random::{ChainId, Rng, SeedSource};
@@ -103,8 +103,14 @@ fn main() -> rmc::Result<()> {
     let seed = SeedSource::new(0x5eed);
     let mut rng = seed.rng_for(ChainId(0));
     let (state, mut kernel, measurement) = build_chain(ChainId(0));
-    let (_final_state, single_stats, single_summary) =
-        run_typed(state, &mut rng, &mut kernel, measurement, params())?;
+    let (_final_state, single_stats, single_summary) = run_chain(
+        state,
+        &mut rng,
+        &mut kernel,
+        measurement,
+        params(),
+        NoopCallbacks,
+    )?;
 
     println!(
         "single chain: steps={}, cycles={}, final_position={}",
@@ -112,21 +118,16 @@ fn main() -> rmc::Result<()> {
     );
 
     let chains = 8;
-    let (parallel_stats, parallel_summary) = run_parallel(
-        ParallelConfig {
-            chains,
-            seed,
-            params: params(),
-        },
-        build_chain,
-    )?;
+    let report = Runner::new(seed, build_chain)
+        .chains(chains)
+        .run(params())?;
 
     println!(
         "parallel: chains={}, steps={}, cycles={}, mean_final_position={:.3}",
         chains,
-        parallel_stats.steps_done,
-        parallel_stats.cycles_done,
-        parallel_summary.final_position_sum as f64 / chains as f64
+        report.stats.steps_done,
+        report.stats.cycles_done,
+        report.output.final_position_sum as f64 / chains as f64
     );
 
     Ok(())

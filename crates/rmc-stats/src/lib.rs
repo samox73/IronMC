@@ -40,7 +40,7 @@ pub trait VarianceAccumulator<T>: MeanAccumulator<T> {
 ///
 /// `ScalarMoments` uses Welford's algorithm for numerically stable single-pass accumulation and
 /// the Chan-Golub-LeVeque merge formula for combining independent partial accumulators. This makes
-/// it suitable as a typed measurement output for `run_parallel`.
+/// it suitable as a typed measurement output for `Runner`.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct ScalarMoments {
@@ -726,7 +726,7 @@ impl Merge for ScalarAutocorrelation {
 /// Raw moments are tracked over every sample, while batch-error estimates are tracked over completed
 /// batches only. When two non-empty accumulators are merged, their incomplete active batches are not
 /// combined across the merge boundary; this preserves the independent-chain interpretation used by
-/// `run_parallel`.
+/// `Runner`.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScalarBatchMeans {

@@ -1,7 +1,7 @@
 use proptest::prelude::*;
 use rand_core::RngCore;
 use rmc_core::mc::{
-    run_parallel, run_typed, Measurement, MetropolisKernel, ParallelConfig, SimulationParams,
+    run_chain, Measurement, MetropolisKernel, NoopCallbacks, Runner, SimulationParams,
     SingleUpdateSet, Update,
 };
 use rmc_core::random::{ChainId, SeedSource};
@@ -86,25 +86,21 @@ proptest! {
             steps_per_cycle,
             cycles_per_check: 1,
         };
-        let config = ParallelConfig {
-            chains,
-            seed: SeedSource::new(seed),
-            params,
-        };
-
-        let parallel = run_parallel(config, parity_chain).unwrap();
+        let seed = SeedSource::new(seed);
+        let parallel = Runner::new(seed, parity_chain).chains(chains).run(params).unwrap();
         let mut manual: Option<(rmc_core::mc::SimulationStats, u64)> = None;
         for chain in 0..chains {
-            let mut rng = config.seed.rng_for(ChainId(chain));
+            let mut rng = seed.rng_for(ChainId(chain));
             let (state, mut kernel, measurement) = parity_chain(ChainId(chain));
-            let (_state, stats, output) = run_typed(state, &mut rng, &mut kernel, measurement, params).unwrap();
+            let (_state, stats, output) =
+                run_chain(state, &mut rng, &mut kernel, measurement, params, NoopCallbacks).unwrap();
             manual = Some(match manual {
                 Some((acc_stats, acc_output)) => (acc_stats.merge(stats), acc_output.merge(output)),
                 None => (stats, output),
             });
         }
 
-        prop_assert_eq!(parallel, manual.unwrap());
+        prop_assert_eq!((parallel.stats, parallel.output), manual.unwrap());
     }
 }
 

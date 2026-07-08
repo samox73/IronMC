@@ -2,8 +2,8 @@ use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion
 use rand::Rng;
 use rmc_core::dispatch_update;
 use rmc_core::mc::{
-    run_typed, Measurement, MetropolisKernel, SimulationParams, SingleUpdateSet, Update,
-    WeightedUpdate, WeightedUpdateSet,
+    run_chain, Measurement, MetropolisKernel, NoopCallbacks, SimulationParams, SingleUpdateSet,
+    Update, WeightedUpdate, WeightedUpdateSet,
 };
 use rmc_core::random::{ChainId, SeedSource};
 
@@ -150,12 +150,13 @@ fn bench_static_single_update(c: &mut Criterion) {
                 (rng, kernel)
             },
             |(mut rng, mut kernel)| {
-                let (state, stats, output) = run_typed(
+                let (state, stats, output) = run_chain(
                     0_u64,
                     &mut rng,
                     &mut kernel,
                     FinalStateMeasurement,
                     params(),
+                    NoopCallbacks,
                 )
                 .unwrap();
                 black_box((state, stats, output));
@@ -174,12 +175,13 @@ fn bench_weighted_enum_update(c: &mut Criterion) {
                 (rng, kernel)
             },
             |(mut rng, mut kernel)| {
-                let (state, stats, output) = run_typed(
+                let (state, stats, output) = run_chain(
                     0_u64,
                     &mut rng,
                     &mut kernel,
                     FinalStateMeasurement,
                     params(),
+                    NoopCallbacks,
                 )
                 .unwrap();
                 black_box((state, stats, output));
@@ -198,12 +200,13 @@ fn bench_weighted_enum_update_with_measurement(c: &mut Criterion) {
                 (rng, kernel)
             },
             |(mut rng, mut kernel)| {
-                let (state, stats, output) = run_typed(
+                let (state, stats, output) = run_chain(
                     0_u64,
                     &mut rng,
                     &mut kernel,
                     CycleMeanMeasurement::new(),
                     cycle_params(),
+                    NoopCallbacks,
                 )
                 .unwrap();
                 black_box((state, stats, output));

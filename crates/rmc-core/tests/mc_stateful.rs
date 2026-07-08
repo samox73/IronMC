@@ -1,6 +1,6 @@
 use rmc_core::dispatch_update;
 use rmc_core::mc::{
-    run_parallel, run_typed, Measurement, MetropolisKernel, ParallelConfig, SimulationParams,
+    run_chain, Measurement, MetropolisKernel, NoopCallbacks, Runner, SimulationParams,
     SingleUpdateSet, Update, UpdateSet,
 };
 use rmc_core::random::{ChainId, SeedSource};
@@ -80,11 +80,11 @@ fn dispatch_update_macro_forwards_update_methods() {
 }
 
 #[test]
-fn run_typed_owns_and_returns_state() {
+fn run_chain_owns_and_returns_state() {
     let mut rng = SeedSource::new(123).rng_for(ChainId(0));
     let mut kernel = MetropolisKernel::new(SingleUpdateSet::new(AddUpdate { delta: 2 }));
 
-    let (state, stats, measured_sum) = run_typed(
+    let (state, stats, measured_sum) = run_chain(
         CounterState { value: 0 },
         &mut rng,
         &mut kernel,
@@ -94,6 +94,7 @@ fn run_typed_owns_and_returns_state() {
             steps_per_cycle: 2,
             cycles_per_check: 1,
         },
+        NoopCallbacks,
     )
     .unwrap();
 
@@ -106,28 +107,23 @@ fn run_typed_owns_and_returns_state() {
 }
 
 #[test]
-fn run_parallel_merges_outputs_from_independent_states() {
-    let (stats, measured_sum) = run_parallel(
-        ParallelConfig {
-            chains: 4,
-            seed: SeedSource::new(123),
-            params: SimulationParams {
-                max_steps: 3,
-                steps_per_cycle: 1,
-                cycles_per_check: 1,
-            },
-        },
-        |chain| {
-            let state = CounterState {
-                value: chain.0 as i64,
-            };
-            let kernel = MetropolisKernel::new(SingleUpdateSet::new(AddUpdate { delta: 1 }));
-            (state, kernel, CounterMeasurement::default())
-        },
-    )
+fn runner_merges_outputs_from_independent_states() {
+    let report = Runner::new(SeedSource::new(123), |chain: ChainId| {
+        let state = CounterState {
+            value: chain.0 as i64,
+        };
+        let kernel = MetropolisKernel::new(SingleUpdateSet::new(AddUpdate { delta: 1 }));
+        (state, kernel, CounterMeasurement::default())
+    })
+    .chains(4)
+    .run(SimulationParams {
+        max_steps: 3,
+        steps_per_cycle: 1,
+        cycles_per_check: 1,
+    })
     .unwrap();
 
-    assert_eq!(stats.steps_done, 12);
-    assert_eq!(stats.cycles_done, 12);
-    assert_eq!(measured_sum, 42);
+    assert_eq!(report.stats.steps_done, 12);
+    assert_eq!(report.stats.cycles_done, 12);
+    assert_eq!(report.output, 42);
 }

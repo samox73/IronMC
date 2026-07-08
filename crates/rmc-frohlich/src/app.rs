@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 
 use indicatif::{MultiProgress, ProgressBar};
 use rmc_core::mc::{
-    run_plan_full, run_plan_full_with_callbacks, run_typed, IndicatifProgress, MetropolisKernel,
-    NullMeasurement, RunPlan, SimulationStats, WeightedUpdateSet,
+    run_chain, IndicatifProgress, MetropolisKernel, NoopCallbacks, NullMeasurement, Runner,
+    SimulationStats, WeightedUpdateSet,
 };
 use rmc_core::random::{ChainId, DefaultRng, SeedSource};
 use rmc_io::{load_payload_json, save_payload_json};
@@ -152,24 +152,6 @@ pub fn build_chain(
     }
 }
 
-fn build_warmup_chain(cfg: RunConfig) -> impl Fn(ChainId) -> (Diagram, PolaronKernel) {
-    move |_chain| {
-        let diagram = build_diagram(&cfg);
-        let kernel = build_kernel().expect("default polaron update set must be valid");
-        (diagram, kernel)
-    }
-}
-
-fn build_main_chain(
-    cfg: RunConfig,
-) -> impl Fn(ChainId, &Diagram) -> (PolaronKernel, PolaronMeasurement) {
-    move |_chain, diagram| {
-        let kernel = build_kernel().expect("default polaron update set must be valid");
-        let measurement = build_measurement(&cfg, diagram);
-        (kernel, measurement)
-    }
-}
-
 pub fn run_from_config(cfg: &RunConfig) -> AppResult<RunOutput> {
     run_from_config_with_progress(cfg, false)
 }
@@ -186,12 +168,13 @@ pub fn run_bench(cfg: &RunConfig) -> AppResult<BenchReport> {
     if cfg.warmup_steps > 0 {
         let mut warmup_kernel = build_kernel()?;
         let t = Instant::now();
-        let (warm_state, _warm_stats, _warm_output) = run_typed(
+        let (warm_state, _warm_stats, _warm_output) = run_chain(
             state,
             &mut rng,
             &mut warmup_kernel,
             NullMeasurement,
             cfg.warmup_params(),
+            NoopCallbacks,
         )?;
         warmup_secs = t.elapsed().as_secs_f64();
         state = warm_state;
@@ -200,12 +183,13 @@ pub fn run_bench(cfg: &RunConfig) -> AppResult<BenchReport> {
     let mut kernel = build_kernel()?;
     let measurement = build_measurement(cfg, &state);
     let t = Instant::now();
-    let (final_state, stats, measurement) = run_typed(
+    let (final_state, stats, measurement) = run_chain(
         state,
         &mut rng,
         &mut kernel,
         measurement,
         cfg.simulation_params(),
+        NoopCallbacks,
     )?;
     let sample_secs = t.elapsed().as_secs_f64();
     let steps_done = stats.steps_done;
@@ -229,22 +213,14 @@ pub fn run_bench(cfg: &RunConfig) -> AppResult<BenchReport> {
 }
 
 pub fn run_from_config_with_progress(cfg: &RunConfig, show_progress: bool) -> AppResult<RunOutput> {
-    let plan = RunPlan {
-        chains: cfg.chains,
-        seed: SeedSource::new(cfg.seed),
-        warmup: cfg.warmup_params(),
-        main: cfg.simulation_params(),
-    };
-    let build_warmup = build_warmup_chain(cfg.clone());
-    let build_main = build_main_chain(cfg.clone());
+    let runner = Runner::new(SeedSource::new(cfg.seed), build_chain(cfg.clone()))
+        .chains(cfg.chains)
+        .warmup(cfg.warmup_params());
 
-    let (stats, measurement, kernels, states) = if show_progress {
+    let report = if show_progress {
         let multi = (cfg.chains > 1).then(MultiProgress::new);
-        run_plan_full_with_callbacks(
-            plan,
-            build_warmup,
-            build_main,
-            |chain| {
+        runner
+            .warmup_callbacks(|chain: ChainId| {
                 progress_callback(
                     cfg.warmup_steps,
                     if cfg.chains > 1 {
@@ -259,25 +235,27 @@ pub fn run_from_config_with_progress(cfg: &RunConfig, show_progress: bool) -> Ap
                     },
                     multi.as_ref(),
                 )
-            },
-            |chain| {
+            })
+            .callbacks(|chain: ChainId| {
                 progress_callback(
                     cfg.max_steps,
                     format!("chain {}", chain.0),
                     format!("chain {} done", chain.0),
                     multi.as_ref(),
                 )
-            },
-        )?
+            })
+            .run(cfg.simulation_params())?
     } else {
-        run_plan_full(plan, build_warmup, build_main)?
+        runner.run(cfg.simulation_params())?
     };
 
     Ok(RunOutput {
-        stats,
-        measurement,
-        final_state: (cfg.chains == 1).then(|| states.into_iter().next().unwrap()),
-        update_stats: update_stats::merge(kernels.iter().map(update_stats::collect).collect()),
+        stats: report.stats,
+        measurement: report.output,
+        final_state: (cfg.chains == 1).then(|| report.states.into_iter().next().unwrap()),
+        update_stats: update_stats::merge(
+            report.kernels.iter().map(update_stats::collect).collect(),
+        ),
     })
 }
 

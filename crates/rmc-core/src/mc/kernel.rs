@@ -48,4 +48,8 @@ where
     fn step(&mut self, state: &mut State, rng: &mut R) -> Result<StepOutcome> {
         self.updates.select_and_step(state, rng)
     }
+
+    fn reset_stats(&mut self) {
+        self.updates.reset_stats()
+    }
 }

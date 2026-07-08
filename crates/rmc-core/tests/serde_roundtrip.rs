@@ -2,9 +2,8 @@
 
 use rand_core::RngCore;
 use rmc_core::mc::{
-    MetropolisKernel, ParallelConfig, SimulationCtx, SimulationParams, SimulationStats,
-    SingleUpdateSet, StepOutcome, TwoUpdateSet, Update, UpdateSet, UpdateStats, WeightedUpdate,
-    WeightedUpdateSet,
+    MetropolisKernel, SimulationCtx, SimulationParams, SimulationStats, SingleUpdateSet,
+    StepOutcome, TwoUpdateSet, Update, UpdateSet, UpdateStats, WeightedUpdate, WeightedUpdateSet,
 };
 use rmc_core::random::{ChainId, DefaultRng, SeedSource};
 use serde::de::DeserializeOwned;
@@ -52,11 +51,6 @@ fn serde_round_trips_run_configuration_and_metadata() {
         cycles_done: 15,
         steps_in_cycle: 0,
     };
-    let parallel = ParallelConfig {
-        chains: 4,
-        seed: SeedSource::new(99),
-        params,
-    };
     let update_stats = UpdateStats {
         nprops: 10,
         naccs: 7,
@@ -72,7 +66,6 @@ fn serde_round_trips_run_configuration_and_metadata() {
     assert_eq!(round_trip::<SimulationParams>(&params), params);
     assert_eq!(round_trip::<SimulationStats>(&stats), stats);
     assert_eq!(round_trip::<SimulationCtx>(&ctx), ctx);
-    assert_eq!(round_trip::<ParallelConfig>(&parallel), parallel);
     assert_eq!(round_trip::<UpdateStats>(&update_stats), update_stats);
     assert_eq!(round_trip::<StepOutcome>(&outcome), outcome);
 }
