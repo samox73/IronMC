@@ -7,6 +7,7 @@ use slotmap::Key;
 
 use crate::diagram::{draw_new_q_from_uniforms, Diagram, VKey};
 
+/// Inserts a new phonon arc (pair of linked vertices) at a random time interval.
 #[derive(Clone, Debug, Default)]
 pub struct AddPhonon {
     vertex1: VKey,
@@ -99,6 +100,7 @@ impl AddPhonon {
     }
 }
 
+/// Removes a randomly chosen phonon arc, the inverse of [`AddPhonon`].
 #[derive(Clone, Debug, Default)]
 pub struct RemovePhonon {
     vertex1: VKey,

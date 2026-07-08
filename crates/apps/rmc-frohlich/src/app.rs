@@ -212,6 +212,7 @@ pub fn run_bench(cfg: &RunConfig) -> AppResult<BenchReport> {
     })
 }
 
+/// Runs `cfg.chains` chains to completion (with warmup), optionally showing progress bars.
 pub fn run_from_config_with_progress(cfg: &RunConfig, show_progress: bool) -> AppResult<RunOutput> {
     let runner = Runner::new(SeedSource::new(cfg.seed), build_chain(cfg.clone()))
         .chains(cfg.chains)
@@ -327,6 +328,7 @@ pub fn summarize_output(cfg: &RunConfig, output: &RunOutput) -> ValidationSummar
     }
 }
 
+/// Writes the summary, raw stats, self-energy, FFT output, and checkpoint as JSON into `dir`.
 pub fn write_results(
     cfg: &RunConfig,
     output: &RunOutput,

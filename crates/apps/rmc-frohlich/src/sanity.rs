@@ -1,3 +1,7 @@
+//! Invariant checks for [`Diagram`]: linked-list/storage consistency, reciprocal arc links,
+//! momentum conservation at each vertex, time ordering, and `phonons_above` counts. Used from
+//! `debug_assert!`s after each update's `accept`.
+
 use nalgebra::Vector3;
 use slotmap::Key;
 

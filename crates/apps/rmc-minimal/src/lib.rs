@@ -7,6 +7,7 @@ use rmc_stats::BinnedScalar;
 
 pub const DEFAULT_BATCH_SIZE: usize = 1_000;
 
+/// The sampled distribution: standard normal in `x`, so ⟨x⟩=0, ⟨x²⟩=1 (the correctness check).
 #[derive(Clone, Debug)]
 pub struct MinimalState {
     pub x: f64,
@@ -19,6 +20,7 @@ impl Default for MinimalState {
 }
 
 impl MinimalState {
+    /// Metropolis ratio exp(−(x'²−x²)/2) for the unit Gaussian target.
     pub fn weight_ratio(x_new: f64, x_old: f64) -> f64 {
         (-(x_new * x_new - x_old * x_old) / 2.0).exp()
     }
@@ -34,6 +36,7 @@ dispatch_update! {
     ; reject
 }
 
+/// Proposes `x' = x + sigma * N(0,1)`.
 #[derive(Clone, Debug)]
 pub struct GaussianShift {
     sigma: f64,
@@ -62,6 +65,7 @@ impl GaussianShift {
     pub fn reject(&mut self, _state: &mut MinimalState) {}
 }
 
+/// Proposes `x' = x + Uniform(-a, a)`.
 #[derive(Clone, Debug)]
 pub struct UniformShift {
     a: f64,
@@ -85,6 +89,7 @@ impl UniformShift {
     pub fn reject(&mut self, _state: &mut MinimalState) {}
 }
 
+/// Proposes `x' = -x`, always accepted (the target is symmetric).
 #[derive(Clone, Debug, Default)]
 pub struct Mirror {
     x_prime: f64,
@@ -103,6 +108,7 @@ impl Mirror {
     pub fn reject(&mut self, _state: &mut MinimalState) {}
 }
 
+/// Two `BinnedScalar`s estimating ⟨x⟩ and ⟨x²⟩.
 pub fn minimal_measurement(
     block_size: usize,
 ) -> Result<(
@@ -115,6 +121,7 @@ pub fn minimal_measurement(
     ))
 }
 
+/// Full update set: Gaussian shift, uniform shift, and mirror moves.
 pub fn build_full() -> Result<WeightedUpdateSet<MinimalUpdate>> {
     WeightedUpdateSet::new(vec![
         WeightedUpdate::new(MinimalUpdate::Gaussian(GaussianShift::new(1.0)), 1.0),
@@ -123,6 +130,7 @@ pub fn build_full() -> Result<WeightedUpdateSet<MinimalUpdate>> {
     ])
 }
 
+/// Single-update (Gaussian shift only) hot-path benchmark set.
 pub fn build_bare() -> Result<WeightedUpdateSet<MinimalUpdate>> {
     WeightedUpdateSet::new(vec![WeightedUpdate::new(
         MinimalUpdate::Gaussian(GaussianShift::new(1.0)),

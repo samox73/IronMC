@@ -1,3 +1,6 @@
+//! Per-update proposal/acceptance counters for [`PolaronKernel`], collected after a run and
+//! rendered as the "UPDATE STATISTICS" table in run summaries.
+
 use rmc_core::mc::UpdateSet;
 use serde::{Deserialize, Serialize};
 

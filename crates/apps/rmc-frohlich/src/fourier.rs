@@ -50,6 +50,8 @@ pub struct FourierOutput {
     pub g_t: Vec<f64>,
 }
 
+/// Fourier-transforms the measured self-energy Σ(τ) into the Matsubara-frequency Green's
+/// function G(ω) and back into G(τ), via the FFT convolution trick in [`analyze_self_energy`].
 pub fn analyze_stats(stats: &PolaronStats, beta: f64) -> FourierResult<FourierOutput> {
     let grid = stats.grid.grid();
     let self_energy = stats.get_exact();

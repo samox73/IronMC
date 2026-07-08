@@ -7,6 +7,8 @@ new_key_type! {
     pub struct VKey;
 }
 
+/// An imaginary-time vertex in a Fröhlich-polaron self-energy diagram: either a bare-propagator
+/// endpoint or one end of a phonon arc (linked via `link` to its partner).
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Vertex {
     pub tau: f64,
@@ -34,6 +36,8 @@ impl Vertex {
     }
 }
 
+/// A Fröhlich-polaron self-energy diagram: a time-ordered linked list of vertices (in `arena`,
+/// from `head` to `tail`) connected pairwise into phonon arcs.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Diagram {
     pub arena: SlotMap<VKey, Vertex>,
@@ -508,6 +512,7 @@ impl Diagram {
     }
 }
 
+/// Normalization of the zeroth-order (no-phonon) sector weight over `[0, max_tau]`.
 pub fn norm0(max_tau: f64, energy: f64) -> f64 {
     (1.0 - (-energy * max_tau).exp()) / energy
 }

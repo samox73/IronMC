@@ -1,3 +1,8 @@
+//! CLI: `rmc-minimal [full|bare] [max_steps] [warmup_steps]` (default `full`). `full` samples
+//! ⟨x⟩ and ⟨x²⟩ with all three updates; `bare` runs the single-update hot path with no
+//! measurement, for engine throughput comparisons. Prints a `steps/sec: <value>` line that
+//! `cargo bench-compare` parses.
+
 use std::hint::black_box;
 use std::time::{Duration, Instant};
 

@@ -24,7 +24,51 @@ framework live under `crates/apps/` — `rmc-frohlich` (the full polaron engine)
 `rmc-minimal` (a minimal benchmark harness) — kept in this repo so they double as perf
 regression fixtures.
 
-<!-- diagram: framework -->
+## Architecture
+
+Crate layering — apps depend on the engine and batteries directly; the `rmc` facade
+re-exports them behind feature gates:
+
+```mermaid
+graph TD
+    facade["rmc<br/>facade, feature-gated re-exports"]
+    core["rmc-core<br/>engine: updates, kernels, runner, seeding"]
+    stats["rmc-stats"]
+    grids["rmc-grids"]
+    numeric["rmc-numeric"]
+    io["rmc-io"]
+    apps["apps: rmc-minimal, rmc-frohlich"]
+
+    facade --> core
+    facade --> stats
+    facade --> grids
+    facade --> numeric
+    facade --> io
+    apps --> core
+    apps --> stats
+```
+
+One MC run — you implement the pieces on the left, the engine drives the loop:
+
+```mermaid
+graph TD
+    subgraph you["you implement"]
+        state["State"]
+        updates["Update&lt;State&gt; impls<br/>attempt → accept / reject"]
+        meas["Measurement&lt;State&gt;<br/>measure per cycle, finish → Output<br/>(tuples compose)"]
+    end
+
+    updates --> set["SingleUpdateSet / WeightedUpdateSet<br/>(SteppingUpdateSet)"]
+    set --> kernel["MetropolisKernel<br/>(Kernel&lt;State, R&gt;: one step)"]
+
+    state --> runner["Runner<br/>deterministic per-chain seeding"]
+    kernel --> runner
+    meas --> runner
+
+    runner -->|"rayon, one RNG stream per ChainId"| chains["run_chain × N chains<br/>step loop + RunCallbacks<br/>(on_step / on_cycle / on_checkpoint / stop_when)"]
+    chains --> merge["Merge<br/>reduce chain outputs"]
+    merge --> report["RunReport<br/>stats, output, kernels, states"]
+```
 
 ## Getting started
 

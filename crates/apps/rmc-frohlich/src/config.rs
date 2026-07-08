@@ -5,18 +5,28 @@ use rmc_core::mc::SimulationParams;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct RunConfig {
+    /// Fröhlich coupling constant.
     pub alpha: f64,
+    /// Chemical potential.
     pub mu: f64,
+    /// External momentum of the polaron.
     pub momentum: f64,
+    /// Imaginary-time cutoff for the diagram.
     pub max_tau: f64,
     pub start_tau: f64,
     pub min_order: usize,
     pub max_order: usize,
+    /// Number of bins in the self-energy histogram over `[0, max_tau]`.
     pub num_bins: usize,
+    /// Number of jackknife batches.
     pub n_batches: usize,
+    /// Initial guess for the ground-state energy, used to reweight `AddPhonon`/`RemovePhonon`.
     pub energy_estimate: f64,
+    /// Steps between successive re-estimates of `energy_estimate`.
     pub initial_self_consistent_period: usize,
+    /// Growth factor applied to the self-consistent period after each reweighting.
     pub period_multiplier: f64,
+    /// Inverse temperature used for the Fourier analysis of the self-energy.
     pub fft_beta: f64,
     pub seed: u64,
     pub chains: u64,

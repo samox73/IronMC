@@ -239,6 +239,8 @@ pub struct SeriesEstimate {
     pub stderr: Vec<f64>,
 }
 
+/// Accumulated jackknife estimators: `exact`/`hist` bin the self-energy histogram over tau,
+/// `energy`/`a` feed the ground-state energy and quasiparticle weight, `zeroth` normalizes them.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct PolaronStats {
     pub zeroth: BatchedSum,
@@ -264,6 +266,7 @@ pub struct PolaronStats {
 }
 
 impl PolaronStats {
+    /// Jackknife estimate of the self-energy Σ(τ) on the measurement grid.
     pub fn jackknife_selfenergy(&self) -> SeriesEstimate {
         let grid = self.grid.grid();
         let dispersion = self.dispersion();
@@ -305,6 +308,7 @@ impl PolaronStats {
         }
     }
 
+    /// Jackknife estimate of the ground-state energy.
     pub fn jackknife_energy(&self) -> Estimate {
         let n0 = norm0(self.max_tau, self.dispersion());
         jackknife_ratio(&self.energy, self.energy_denominator(), |energy, zeroth| {
@@ -316,6 +320,7 @@ impl PolaronStats {
         })
     }
 
+    /// Jackknife estimate of the quasiparticle weight Z.
     pub fn jackknife_quasiparticle_weight(&self) -> Estimate {
         let n0 = norm0(self.max_tau, self.dispersion());
         jackknife_ratio(&self.a, self.energy_denominator(), |a, zeroth| {
@@ -379,6 +384,8 @@ impl Merge for PolaronStats {
     }
 }
 
+/// Collects [`PolaronStats`] from sampled [`Diagram`] states during a Monte Carlo run, with
+/// periodic self-consistent reweighting of the energy estimate.
 #[derive(Clone, Debug)]
 pub struct PolaronMeasurement {
     stats: PolaronStats,

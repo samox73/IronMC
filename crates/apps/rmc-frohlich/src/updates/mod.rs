@@ -31,6 +31,7 @@ dispatch_update! {
     }
 }
 
+/// The full update set: all eight diagram moves, equally weighted.
 pub fn default_update_set() -> Result<WeightedUpdateSet<PolaronUpdate>> {
     WeightedUpdateSet::new(vec![
         WeightedUpdate::new(PolaronUpdate::ChangeTau(ChangeTau::default()), 1.0),
@@ -59,6 +60,7 @@ pub fn default_update_set() -> Result<WeightedUpdateSet<PolaronUpdate>> {
     ])
 }
 
+/// Resamples the diagram's total imaginary time (the tail vertex's tau).
 #[derive(Clone, Debug, Default)]
 pub struct ChangeTau {
     tau_prime: f64,
@@ -80,6 +82,7 @@ impl ChangeTau {
     }
 }
 
+/// Resamples the tau of a randomly chosen internal (non-head/tail) vertex.
 #[derive(Clone, Debug, Default)]
 pub struct ChangeInternalTau {
     vertex: VKey,
@@ -128,6 +131,7 @@ impl ChangeInternalTau {
     }
 }
 
+/// Rescales all vertex taus by a common factor, proposed from the diagram's energy scale.
 #[derive(Clone, Debug, Default)]
 pub struct RescaleDiagram {
     tau_prime: f64,
@@ -181,6 +185,7 @@ impl RescaleDiagram {
     }
 }
 
+/// Resamples the momentum-transfer magnitude `|q|` of a randomly chosen phonon arc.
 #[derive(Clone, Debug, Default)]
 pub struct ChangeQModulus {
     vertex1: VKey,
@@ -222,6 +227,7 @@ impl ChangeQModulus {
     }
 }
 
+/// Resamples the direction of a phonon arc's momentum transfer `q`, keeping `|q|` fixed.
 #[derive(Clone, Debug, Default)]
 pub struct ChangeQDirection {
     vertex1: VKey,
@@ -265,6 +271,8 @@ impl ChangeQDirection {
     }
 }
 
+/// Swaps the phonon-arc connectivity between two adjacent vertices, changing which arcs cross
+/// which time interval without adding or removing vertices.
 #[derive(Clone, Debug, Default)]
 pub struct ChangeTopology {
     vertex1: VKey,
