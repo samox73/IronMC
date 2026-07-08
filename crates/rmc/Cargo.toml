@@ -18,8 +18,6 @@ serde = [
 ]
 numeric = ["grids", "dep:rmc-numeric"]
 io = ["serde", "dep:rmc-io"]
-mpi = []
-hdf5 = []
 
 [dependencies]
 rmc-core.workspace = true

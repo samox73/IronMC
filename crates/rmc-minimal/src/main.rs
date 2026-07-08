@@ -2,10 +2,10 @@ use std::hint::black_box;
 use std::time::{Duration, Instant};
 
 use rmc_core::mc::{
-    run_chain, MetropolisKernel, NoopCallbacks, NullMeasurement, RunCallbacks, SimulationCtx,
-    SimulationParams,
+    run_chain, Kernel, Measurement, MetropolisKernel, NoopCallbacks, NullMeasurement, RunCallbacks,
+    SimulationCtx, SimulationParams,
 };
-use rmc_core::random::{ChainId, SeedSource};
+use rmc_core::random::{ChainId, DefaultRng, SeedSource};
 use rmc_core::RmcError;
 use rmc_minimal::{build_bare, build_full, minimal_measurement, MinimalState, DEFAULT_BATCH_SIZE};
 use rmc_stats::ScalarJackknife;
@@ -128,7 +128,12 @@ fn measured_params(max_steps: u64) -> SimulationParams {
 }
 
 fn run_full(max_steps: u64, warmup_steps: u64) -> rmc_core::Result<()> {
-    let result = run_full_once(max_steps, warmup_steps)?;
+    let result = run_once(
+        max_steps,
+        warmup_steps,
+        MetropolisKernel::new(build_full()?),
+        minimal_measurement(DEFAULT_BATCH_SIZE)?,
+    )?;
     let steps_per_sec = result.steps_done as f64 / result.elapsed.as_secs_f64();
     println!("sample_secs: {:.6}", result.elapsed.as_secs_f64());
     println!("steps/sec: {:.3}", steps_per_sec);
@@ -140,44 +145,13 @@ fn run_full(max_steps: u64, warmup_steps: u64) -> rmc_core::Result<()> {
     Ok(())
 }
 
-fn run_full_once(
-    max_steps: u64,
-    warmup_steps: u64,
-) -> rmc_core::Result<RunResult<(ScalarJackknife, ScalarJackknife)>> {
-    let mut rng = SeedSource::new(SEED).rng_for(ChainId(0));
-    let mut kernel = MetropolisKernel::new(build_full()?);
-    let state = MinimalState::default();
-    let (state, _, _) = run_chain(
-        state,
-        &mut rng,
-        &mut kernel,
-        NullMeasurement,
-        params(warmup_steps),
-        NoopCallbacks,
-    )?;
-
-    let measurement = minimal_measurement(DEFAULT_BATCH_SIZE)?;
-    let mut progress = StderrProgress::new(max_steps);
-    let start = Instant::now();
-    let (_state, stats, output) = run_chain(
-        state,
-        &mut rng,
-        &mut kernel,
-        measurement,
-        measured_params(max_steps),
-        &mut progress,
-    )?;
-    let elapsed = start.elapsed();
-
-    Ok(RunResult {
-        elapsed,
-        steps_done: stats.steps_done,
-        output,
-    })
-}
-
 fn run_bare(max_steps: u64, warmup_steps: u64) -> rmc_core::Result<()> {
-    let result = run_bare_once(max_steps, warmup_steps)?;
+    let result = run_once(
+        max_steps,
+        warmup_steps,
+        MetropolisKernel::new(build_bare()?),
+        NullMeasurement,
+    )?;
     let steps_per_sec = result.steps_done as f64 / result.elapsed.as_secs_f64();
     println!("sample_secs: {:.6}", result.elapsed.as_secs_f64());
     println!("steps/sec: {:.3}", steps_per_sec);
@@ -186,9 +160,17 @@ fn run_bare(max_steps: u64, warmup_steps: u64) -> rmc_core::Result<()> {
     Ok(())
 }
 
-fn run_bare_once(max_steps: u64, warmup_steps: u64) -> rmc_core::Result<RunResult<()>> {
+fn run_once<K, M>(
+    max_steps: u64,
+    warmup_steps: u64,
+    mut kernel: K,
+    measurement: M,
+) -> rmc_core::Result<RunResult<M::Output>>
+where
+    K: Kernel<MinimalState, DefaultRng>,
+    M: Measurement<MinimalState>,
+{
     let mut rng = SeedSource::new(SEED).rng_for(ChainId(0));
-    let mut kernel = MetropolisKernel::new(build_bare()?);
     let state = MinimalState::default();
     let (state, _, _) = run_chain(
         state,
@@ -205,7 +187,7 @@ fn run_bare_once(max_steps: u64, warmup_steps: u64) -> rmc_core::Result<RunResul
         state,
         &mut rng,
         &mut kernel,
-        NullMeasurement,
+        measurement,
         measured_params(max_steps),
         &mut progress,
     )?;

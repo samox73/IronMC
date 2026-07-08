@@ -7,7 +7,6 @@ license.workspace = true
 
 [dependencies]
 rmc-core = { workspace = true, features = ["serde"] }
-rmc-stats.workspace = true
 rmc-grids.workspace = true
 rmc-numeric.workspace = true
 rmc-io.workspace = true
@@ -20,7 +19,6 @@ serde.workspace = true
 serde_json.workspace = true
 slotmap.workspace = true
 indicatif.workspace = true
-rayon.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

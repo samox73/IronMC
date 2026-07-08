@@ -6,7 +6,7 @@ use rmc_core::mc::{
     run_chain, IndicatifProgress, MetropolisKernel, NoopCallbacks, NullMeasurement, Runner,
     SimulationStats, WeightedUpdateSet,
 };
-use rmc_core::random::{ChainId, DefaultRng, SeedSource};
+use rmc_core::random::{ChainId, SeedSource};
 use rmc_io::{load_payload_json, save_payload_json};
 
 use crate::config::RunConfig;
@@ -371,10 +371,4 @@ pub fn write_results(
 fn write_json<T: serde::Serialize>(path: PathBuf, value: &T) -> AppResult<()> {
     fs::write(path, serde_json::to_vec_pretty(value)?)?;
     Ok(())
-}
-
-#[allow(dead_code)]
-fn _assert_default_rng_kernel() {
-    fn assert_kernel<K: rmc_core::mc::Kernel<Diagram, DefaultRng>>() {}
-    assert_kernel::<PolaronKernel>();
 }
