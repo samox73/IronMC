@@ -1,6 +1,6 @@
 # Rust Froehlich-polaron DiagMC (rmc-frohlich)
 #
-#   make run                 run the release build against ./input.json
+#   make run                 run the release build against crates/apps/rmc-frohlich/input.json
 #
 # Performance targets (all use release-tuned + target-cpu=native, pinned to core 0):
 #   make test-perf-frohlich  end-to-end polaron sim in runs/test-perf-froehlich/alpha-5/
@@ -29,19 +29,23 @@ TUNED_FLAGS        := RUSTFLAGS="-C target-cpu=native"
 .DEFAULT_GOAL := run
 .PHONY: run bench bench-core bench-minimal bench-frohlich
 
-# Default: run the release build using input.json in the current directory.
+# Default: run the release build using the crate's committed input.json.
 # Results are written to ./results (the binary's default output directory).
 run:
-	cargo run --release -p $(CRATE) -- input.json
+	cargo run --release -p $(CRATE) -- crates/apps/$(CRATE)/input.json
 
 bench: bench-core bench-minimal bench-frohlich
 
 bench-core:
-	cargo bench-compare --bench hot_path --dedicate-core
+	@cargo bench-compare --bench hot_path --dedicate-core
+	@echo "------------------------------------------------------"
 
 bench-minimal:
-	cargo bench-compare --bin rmc-minimal --reps 10 --metric-regex 'steps/sec:\s*([\d.]+)' --progress-regex 'step (\d+)/(\d+)' --dedicate-core -- bare 3000000
-	cargo bench-compare --bin rmc-minimal --reps 10 --metric-regex 'steps/sec:\s*([\d.]+)' --progress-regex 'step (\d+)/(\d+)' --dedicate-core -- full 3000000
+	@cargo bench-compare --bin rmc-minimal --reps 10 --metric-regex 'steps/sec:\s*([\d.]+)' --progress-regex 'step (\d+)/(\d+)' --dedicate-core -- bare 3000000
+	@echo "------------------------------------------------------"
+	@cargo bench-compare --bin rmc-minimal --reps 10 --metric-regex 'steps/sec:\s*([\d.]+)' --progress-regex 'step (\d+)/(\d+)' --dedicate-core -- full 3000000
+	@echo "------------------------------------------------------"
 
 bench-frohlich:
-	cargo bench-compare --bin rmc-frohlich --reps 10 --metric-regex 'steps/sec:\s*([\d.]+)' --dedicate-core -- bench
+	@cargo bench-compare --bin rmc-frohlich --reps 10 --metric-regex 'steps/sec:\s*([\d.]+)' --dedicate-core -- bench
+	@echo "------------------------------------------------------"

@@ -34,6 +34,9 @@ pub struct RunOutput {
     pub measurement: PolaronStats,
     pub final_state: Option<Diagram>,
     pub update_stats: Vec<UpdateStatEntry>,
+    /// Wall-clock seconds of the run. For [`run_from_config_with_progress`] this includes warmup
+    /// (it runs inside [`Runner::run`]); for [`run_bench`] it is the sampling loop only.
+    pub wall_secs: f64,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -64,6 +67,8 @@ pub struct ValidationSummary {
     pub total_selfenergy_bins: usize,
     pub final_energy_estimate: f64,
     pub energy_estimate_history: Vec<f64>,
+    pub wall_secs: f64,
+    pub steps_per_sec: f64,
     pub update_stats: Vec<UpdateStatEntry>,
 }
 
@@ -80,7 +85,9 @@ impl ValidationSummary {
                 "zeroth_mean: {zeroth:.8}\n",
                 "mean_order: {order:.8}\n",
                 "finite_selfenergy_bins: {finite}/{total}\n",
-                "final_reweighting_energy_estimate: {reweight:.8}"
+                "final_reweighting_energy_estimate: {reweight:.8}\n",
+                "wall_secs: {wall:.3}\n",
+                "steps_per_sec: {rate:.0}"
             ),
             steps = self.steps_done,
             cycles = self.cycles_done,
@@ -99,6 +106,8 @@ impl ValidationSummary {
             finite = self.finite_selfenergy_bins,
             total = self.total_selfenergy_bins,
             reweight = self.final_energy_estimate,
+            wall = self.wall_secs,
+            rate = self.steps_per_sec,
         );
         text.push('\n');
         text.push_str(&update_stats::render(&self.update_stats));
@@ -199,6 +208,7 @@ pub fn run_bench(cfg: &RunConfig) -> AppResult<BenchReport> {
         measurement,
         final_state: Some(final_state),
         update_stats: update_stats::collect(&kernel),
+        wall_secs: sample_secs,
     };
     let summary = summarize_output(cfg, &output);
 
@@ -218,6 +228,7 @@ pub fn run_from_config_with_progress(cfg: &RunConfig, show_progress: bool) -> Ap
         .chains(cfg.chains)
         .warmup(cfg.warmup_params());
 
+    let start = std::time::Instant::now();
     let report = if show_progress {
         let multi = (cfg.chains > 1).then(MultiProgress::new);
         runner
@@ -257,6 +268,7 @@ pub fn run_from_config_with_progress(cfg: &RunConfig, show_progress: bool) -> Ap
         update_stats: update_stats::merge(
             report.kernels.iter().map(update_stats::collect).collect(),
         ),
+        wall_secs: start.elapsed().as_secs_f64(),
     })
 }
 
@@ -324,6 +336,12 @@ pub fn summarize_output(cfg: &RunConfig, output: &RunOutput) -> ValidationSummar
         total_selfenergy_bins,
         final_energy_estimate: output.measurement.energy_estimate,
         energy_estimate_history: output.measurement.energy_estimates.clone(),
+        wall_secs: output.wall_secs,
+        steps_per_sec: if output.wall_secs > 0.0 {
+            output.stats.steps_done as f64 / output.wall_secs
+        } else {
+            0.0
+        },
         update_stats: output.update_stats.clone(),
     }
 }

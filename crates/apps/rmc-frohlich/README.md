@@ -30,7 +30,7 @@ for this workspace, as opposed to the toy `rmc-minimal` benchmark.
 ## Run
 
 ```bash
-make run                                     # release build against ./input.json
+make run                                     # release build against this crate's input.json
 cargo run -p rmc-frohlich -- def             # print the default RunConfig as JSON
 cargo run -p rmc-frohlich -- bench           # timed sampling loop only, no output files
 cargo run -p rmc-frohlich -- <config.json> [results_dir]   # full run with progress bar
