@@ -4,7 +4,7 @@ Reviewed: all `.rs` sources in `crates/{rmc-core, rmc-stats, rmc-grids, rmc-nume
 
 Implementation status checked against the current tree:
 
-- Done: P1, P2, A1, U1, U3, A2, Q1, A4, Q6.
+- Done: P1, P2, P3, P4, A1, U1, U3, A2, Q1, A4, Q6.
 - Partial: U2. Core now has `RunPlan`/`run_plan_full` with warmup, progress callbacks, parallel merge, final kernels, and final states, and `rmc-frohlich` uses it. The generic results-directory writer proposed in the review is still app-local.
 - Not seen in the current tree: other table items beyond U1/Q6.
 
@@ -24,10 +24,12 @@ Implementation status checked against the current tree:
   **Current status:** implemented. `hot_path.rs` now keeps the single-update baseline and adds `WeightedUpdateSet<enum{8 variants}>` plus the same weighted path with measurement every 5 steps.
   **Fix:** add two benches: (a) `WeightedUpdateSet<enum{8 variants}>` with a realistic accept/reject mix, and (b) the same run with a `ScalarBlockMeans`-style measurement at `steps_per_cycle = 5` (the production cadence). That makes the criterion suite able to catch regressions in the code paths the physics actually uses.
 
-- **[P3, LOW]** `IndicatifProgress::on_step` (`rmc-core/src/mc/progress.rs:47-53`) calls `bar.inc(delta)` on every MC step. indicatif throttles drawing but still does atomic position updates per call; at 10⁸–10⁹ steps this is measurable overhead in the default interactive path (`run_from_config_with_progress` is what `rmc-frohlich` `main` runs). The timed `run_bench` path avoids it, so benchmark numbers are clean.
+- **[P3, LOW, DONE]** `IndicatifProgress::on_step` (`rmc-core/src/mc/progress.rs:47-53`) calls `bar.inc(delta)` on every MC step. indicatif throttles drawing but still does atomic position updates per call; at 10⁸–10⁹ steps this is measurable overhead in the default interactive path (`run_from_config_with_progress` is what `rmc-frohlich` `main` runs). The timed `run_bench` path avoids it, so benchmark numbers are clean.
+  **Current status:** implemented. Progress now advances in `on_cycle`, batching the position update to one indicatif increment per measurement cycle while preserving partial-final-cycle accounting.
   **Fix suggestion:** move increments to `on_cycle` (add `bar.inc(steps_per_cycle)` there) or only `inc` every N-th step.
 
-- **[P4, LOW]** `PolaronMeasurement::measure` reconstructs the `LinearGrid` from `GridSpec` on every measurement cycle (`rmc-frohlich/src/measurement.rs:416` → `GridSpec::grid()` at measurement.rs:198, which runs `LinearGrid::new` validation + division). Trivial per call but pure waste at ~1 call / 5 steps; cache the grid in `PolaronMeasurement` (it is `Copy`-cheap: `LinearGrid` is `Copy`).
+- **[P4, LOW, DONE]** `PolaronMeasurement::measure` reconstructs the `LinearGrid` from `GridSpec` on every measurement cycle (`rmc-frohlich/src/measurement.rs:416` → `GridSpec::grid()` at measurement.rs:198, which runs `LinearGrid::new` validation + division). Trivial per call but pure waste at ~1 call / 5 steps; cache the grid in `PolaronMeasurement` (it is `Copy`-cheap: `LinearGrid` is `Copy`).
+  **Current status:** implemented. `PolaronMeasurement` now stores a cached `LinearGrid` built once in `new()` and reuses it in `measure`; `PolaronStats` keeps the serializable `GridSpec` for outputs.
 
 - **[P5, LOW]** `DynUpdateSet` keeps two copies of the counters — on `UpdateEntry` (entries.rs:79-84) and mirrored into `stats: Vec<UpdateStats>` with an indexed write per step (sets.rs:367-375) plus a full re-collect in `refresh_stats` (sets.rs:427-438). Not hot in production (the dyn path is unused there, see A1), but it is a needless double bookkeeping that showed up once already as the per-step `refresh_stats()` bug the comment at sets.rs:364 describes.
 
@@ -136,8 +138,8 @@ Implementation status checked against the current tree:
 | Q2 |        | `sum_sq − n·mean²` cancellation in batch/block-means variance                    | MEDIUM   | rmc-stats/src/lib.rs:827-840,1002-1015                              | Small (delegate to ScalarMoments)              |
 | Q3 |        | Stats merges panic on shape mismatch inside parallel fold                        | MEDIUM   | rmc-stats/src/lib.rs:668,845,1020,1268,1425                         | Small (document or try_merge)                  |
 | A4 | ✅     | `energy`/`a` reset desyncs batch windows from `zeroth` after re-estimate         | LOW      | rmc-frohlich/src/measurement.rs:399-403                             | Implemented                                    |
-| P3 |        | Per-step progress-bar `inc` in interactive path                                  | LOW      | rmc-core/src/mc/progress.rs:47-53                                   | Trivial                                        |
-| P4 |        | `LinearGrid` rebuilt every measurement cycle                                     | LOW      | rmc-frohlich/src/measurement.rs:416                                 | Trivial (cache)                                |
+| P3 | ✅     | Per-step progress-bar `inc` in interactive path                                  | LOW      | rmc-core/src/mc/progress.rs:47-53                                   | Implemented                                    |
+| P4 | ✅     | `LinearGrid` rebuilt every measurement cycle                                     | LOW      | rmc-frohlich/src/measurement.rs:416                                 | Implemented                                    |
 | P5 |        | Duplicate counter bookkeeping in DynUpdateSet                                    | LOW      | rmc-core/src/mc/sets.rs:367-375,427-438                             | Small; moot if A1(a)                           |
 | U4 |        | `f64` sentinel protocol for impossible moves; NaN behavior undocumented          | LOW      | rmc-core/src/mc/traits.rs:18-23                                     | Trivial (const + docs)                         |
 | U5 |        | Stringly-typed `RmcError`; no `From` bridges across domain errors                | LOW      | rmc-core/src/error.rs                                               | Small (facade error enum)                      |

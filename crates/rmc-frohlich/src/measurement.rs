@@ -379,9 +379,10 @@ impl Merge for PolaronStats {
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug)]
 pub struct PolaronMeasurement {
     stats: PolaronStats,
+    grid: LinearGrid,
 }
 
 impl PolaronMeasurement {
@@ -397,6 +398,7 @@ impl PolaronMeasurement {
     ) -> Self {
         let grid = GridSpec::new(0.0, max_tau, num_bins + 1);
         Self {
+            grid: grid.grid(),
             stats: PolaronStats {
                 zeroth: BatchedSum::with_expected_samples(n_batches, expected_samples),
                 zeroth_for_energy: Some(BatchedSum::with_expected_samples(
@@ -462,13 +464,12 @@ impl Measurement<Diagram> for PolaronMeasurement {
     type Output = PolaronStats;
 
     fn measure(&mut self, d: &Diagram) {
-        let grid = self.stats.grid.grid();
-        let Some(index) = grid.bin_index(d.tau()) else {
+        let Some(index) = self.grid.bin_index(d.tau()) else {
             return;
         };
 
         let is_zeroth = d.order == 0;
-        let t0 = grid.bin_center(index).expect("bin center must exist");
+        let t0 = self.grid.bin_center(index).expect("bin center must exist");
         let exact_value = if is_zeroth {
             0.0
         } else {

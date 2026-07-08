@@ -44,15 +44,12 @@ impl IndicatifProgress {
 }
 
 impl RunCallbacks<SimulationCtx> for IndicatifProgress {
-    fn on_step(&mut self, ctx: &SimulationCtx) {
+    fn on_cycle(&mut self, ctx: &SimulationCtx) {
         let delta = ctx.steps_done.saturating_sub(self.last_steps_done);
         if delta > 0 {
             self.bar.inc(delta);
             self.last_steps_done = ctx.steps_done;
         }
-    }
-
-    fn on_cycle(&mut self, ctx: &SimulationCtx) {
         self.bar.set_message(format!("cycle {}", ctx.cycles_done));
     }
 }
