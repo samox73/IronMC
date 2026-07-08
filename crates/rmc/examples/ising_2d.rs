@@ -15,19 +15,19 @@
 //! proposes and accepts a flip, while the measurement receives `&IsingLattice` once per simulation
 //! cycle. The measurement records the magnetization per spin and absolute magnetization per spin,
 //! then returns a typed `IsingSummary` from `Measurement::finish`. `IsingSummary` implements
-//! `Merge`, which lets `run_parallel` combine independent chains with the same
+//! `Merge`, which lets `Runner` combine independent chains with the same
 //! reduction mechanism used by the rest of the prototype.
 //!
 //! The example runs the same model in two modes:
 //!
-//! 1. A single chain via `run_typed`.
-//! 2. Eight independent chains via `run_parallel`.
+//! 1. A single chain via `run_chain`.
+//! 2. Eight independent chains via `Runner`.
 //!
 //! This is still a prototype example, but unlike the first version it does not use `Arc<Mutex<_>>`
 //! in the hot path. Each rayon worker owns a complete independent chain state.
 
 use rmc::mc::{
-    run_parallel, run_typed, Measurement, MetropolisKernel, ParallelConfig, SimulationParams,
+    run_chain, Measurement, MetropolisKernel, NoopCallbacks, Runner, SimulationParams,
     SingleUpdateSet, Update,
 };
 use rmc::random::{uniform_index, ChainId, Rng, SeedSource};
@@ -204,8 +204,14 @@ fn main() -> rmc::Result<()> {
     let seed = SeedSource::new(0x15_1eaf);
     let mut rng = seed.rng_for(ChainId(0));
     let (state, mut kernel, measurement) = build_chain(ChainId(0));
-    let (_state, single_stats, single_summary) =
-        run_typed(state, &mut rng, &mut kernel, measurement, params())?;
+    let (_state, single_stats, single_summary) = run_chain(
+        state,
+        &mut rng,
+        &mut kernel,
+        measurement,
+        params(),
+        NoopCallbacks,
+    )?;
 
     println!(
         "single chain: steps={}, samples={}, mean_m={:.3}, mean_abs_m={:.3}",
@@ -216,22 +222,17 @@ fn main() -> rmc::Result<()> {
     );
 
     let chains = 8;
-    let (parallel_stats, parallel_summary) = run_parallel(
-        ParallelConfig {
-            chains,
-            seed,
-            params: params(),
-        },
-        build_chain,
-    )?;
+    let report = Runner::new(seed, build_chain)
+        .chains(chains)
+        .run(params())?;
 
     println!(
         "parallel: chains={}, steps={}, samples={}, mean_m={:.3}, mean_abs_m={:.3}",
         chains,
-        parallel_stats.steps_done,
-        parallel_summary.samples,
-        parallel_summary.mean_magnetization(),
-        parallel_summary.mean_abs_magnetization()
+        report.stats.steps_done,
+        report.output.samples,
+        report.output.mean_magnetization(),
+        report.output.mean_abs_magnetization()
     );
 
     Ok(())

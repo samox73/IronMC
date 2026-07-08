@@ -1,6 +1,5 @@
 use rmc_core::mc::{
-    run_parallel, Measurement, MetropolisKernel, ParallelConfig, SimulationParams, SingleUpdateSet,
-    Update,
+    Measurement, MetropolisKernel, Runner, SimulationParams, SingleUpdateSet, Update,
 };
 use rmc_core::random::{ChainId, SeedSource};
 use rmc_core::Merge;
@@ -185,25 +184,21 @@ impl Measurement<u64> for StateBatchMeans {
 
 #[test]
 fn scalar_batch_means_merges_parallel_measurement_outputs() {
-    let (_stats, batches) = run_parallel(
-        ParallelConfig {
-            chains: 4,
-            seed: SeedSource::new(44),
-            params: SimulationParams {
-                max_steps: 6,
-                steps_per_cycle: 1,
-                cycles_per_check: 1,
-            },
-        },
-        |_chain: ChainId| {
-            (
-                0_u64,
-                MetropolisKernel::new(SingleUpdateSet::new(IncrementState)),
-                StateBatchMeans::new(2),
-            )
-        },
-    )
-    .unwrap();
+    let batches = Runner::new(SeedSource::new(44), |_chain: ChainId| {
+        (
+            0_u64,
+            MetropolisKernel::new(SingleUpdateSet::new(IncrementState)),
+            StateBatchMeans::new(2),
+        )
+    })
+    .chains(4)
+    .run(SimulationParams {
+        max_steps: 6,
+        steps_per_cycle: 1,
+        cycles_per_check: 1,
+    })
+    .unwrap()
+    .output;
 
     assert_eq!(batches.count(), 24);
     assert_eq!(batches.completed_batch_count(), 12);

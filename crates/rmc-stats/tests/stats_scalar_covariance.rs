@@ -1,6 +1,5 @@
 use rmc_core::mc::{
-    run_parallel, Measurement, MetropolisKernel, ParallelConfig, SimulationParams, SingleUpdateSet,
-    Update,
+    Measurement, MetropolisKernel, Runner, SimulationParams, SingleUpdateSet, Update,
 };
 use rmc_core::random::{ChainId, SeedSource};
 use rmc_core::Merge;
@@ -146,25 +145,21 @@ impl Measurement<u64> for StateCovariance {
 
 #[test]
 fn scalar_covariance_merges_parallel_measurement_outputs() {
-    let (_stats, covariance) = run_parallel(
-        ParallelConfig {
-            chains: 4,
-            seed: SeedSource::new(43),
-            params: SimulationParams {
-                max_steps: 5,
-                steps_per_cycle: 1,
-                cycles_per_check: 1,
-            },
-        },
-        |_chain: ChainId| {
-            (
-                0_u64,
-                MetropolisKernel::new(SingleUpdateSet::new(IncrementState)),
-                StateCovariance::default(),
-            )
-        },
-    )
-    .unwrap();
+    let covariance = Runner::new(SeedSource::new(43), |_chain: ChainId| {
+        (
+            0_u64,
+            MetropolisKernel::new(SingleUpdateSet::new(IncrementState)),
+            StateCovariance::default(),
+        )
+    })
+    .chains(4)
+    .run(SimulationParams {
+        max_steps: 5,
+        steps_per_cycle: 1,
+        cycles_per_check: 1,
+    })
+    .unwrap()
+    .output;
 
     assert_eq!(covariance.count(), 20);
     assert_pair_close(covariance.mean().unwrap(), (3.0, 6.0));

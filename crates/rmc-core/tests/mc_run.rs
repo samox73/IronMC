@@ -2,9 +2,9 @@ use std::cell::Cell;
 use std::rc::Rc;
 
 use rmc_core::mc::{
-    run_typed, run_typed_with_callbacks, Measurement, MetropolisKernel, RunCallbacks,
-    SimulationCtx, SimulationParams, SingleUpdateSet, SteppingUpdateSet, TwoUpdateSet, Update,
-    UpdateSet, WeightedUpdate, WeightedUpdateSet,
+    run_chain, Measurement, MetropolisKernel, NoopCallbacks, RunCallbacks, SimulationCtx,
+    SimulationParams, SingleUpdateSet, SteppingUpdateSet, TwoUpdateSet, Update, UpdateSet,
+    WeightedUpdate, WeightedUpdateSet,
 };
 use rmc_core::random::{ChainId, SeedSource};
 
@@ -68,7 +68,7 @@ impl Measurement<i64> for TypedCounterMeasurement {
 }
 
 #[test]
-fn run_typed_executes_metropolis_kernel() {
+fn run_chain_executes_metropolis_kernel() {
     let value = Rc::new(Cell::new(0));
     let measurement_count = Rc::new(Cell::new(0));
     let updates = SingleUpdateSet::new(IncrementUpdate {
@@ -76,7 +76,7 @@ fn run_typed_executes_metropolis_kernel() {
     });
     let mut kernel = MetropolisKernel::new(updates);
     let mut rng = SeedSource::new(123).rng_for(ChainId(0));
-    let (_state, stats, ()) = run_typed(
+    let (_state, stats, ()) = run_chain(
         (),
         &mut rng,
         &mut kernel,
@@ -88,6 +88,7 @@ fn run_typed_executes_metropolis_kernel() {
             steps_per_cycle: 2,
             cycles_per_check: 1,
         },
+        NoopCallbacks,
     )
     .unwrap();
 
@@ -120,7 +121,7 @@ fn run_callbacks_can_stop_the_loop() {
     let mut rng = SeedSource::new(123).rng_for(ChainId(0));
     let mut callbacks = StopAfterTwoCycles;
 
-    let (_state, stats, ()) = run_typed_with_callbacks(
+    let (_state, stats, ()) = run_chain(
         (),
         &mut rng,
         &mut kernel,
@@ -142,7 +143,7 @@ fn run_callbacks_can_stop_the_loop() {
 }
 
 #[test]
-fn run_typed_returns_measurement_output_by_ownership() {
+fn run_chain_returns_measurement_output_by_ownership() {
     let value = Rc::new(Cell::new(0));
     let updates = SingleUpdateSet::new(IncrementUpdate {
         value: Rc::clone(&value),
@@ -150,7 +151,7 @@ fn run_typed_returns_measurement_output_by_ownership() {
     let mut kernel = MetropolisKernel::new(updates);
     let mut rng = SeedSource::new(123).rng_for(ChainId(0));
 
-    let (_state, stats, measurement_count) = run_typed(
+    let (_state, stats, measurement_count) = run_chain(
         (),
         &mut rng,
         &mut kernel,
@@ -160,6 +161,7 @@ fn run_typed_returns_measurement_output_by_ownership() {
             steps_per_cycle: 3,
             cycles_per_check: 1,
         },
+        NoopCallbacks,
     )
     .unwrap();
 
@@ -177,7 +179,7 @@ fn run_rejects_zero_steps_per_cycle() {
     let mut kernel = MetropolisKernel::new(updates);
     let mut rng = SeedSource::new(123).rng_for(ChainId(0));
 
-    let err = run_typed(
+    let err = run_chain(
         (),
         &mut rng,
         &mut kernel,
@@ -187,6 +189,7 @@ fn run_rejects_zero_steps_per_cycle() {
             steps_per_cycle: 0,
             cycles_per_check: 1,
         },
+        NoopCallbacks,
     )
     .unwrap_err();
 
@@ -218,7 +221,7 @@ impl Update<()> for CountingUpdate {
 }
 
 #[test]
-fn run_typed_works_with_static_single_update_set() {
+fn run_chain_works_with_static_single_update_set() {
     let accepted = Rc::new(Cell::new(0));
     let rejected = Rc::new(Cell::new(0));
     let updates = SingleUpdateSet::new(CountingUpdate {
@@ -229,7 +232,7 @@ fn run_typed_works_with_static_single_update_set() {
     let mut kernel = MetropolisKernel::new(updates);
     let mut rng = SeedSource::new(123).rng_for(ChainId(0));
 
-    let (_state, stats, measurement_count) = run_typed(
+    let (_state, stats, measurement_count) = run_chain(
         (),
         &mut rng,
         &mut kernel,
@@ -239,6 +242,7 @@ fn run_typed_works_with_static_single_update_set() {
             steps_per_cycle: 4,
             cycles_per_check: 1,
         },
+        NoopCallbacks,
     )
     .unwrap();
 
@@ -311,7 +315,7 @@ fn two_update_set_runs_two_static_update_types() {
     let mut kernel = MetropolisKernel::new(updates);
     let mut rng = SeedSource::new(123).rng_for(ChainId(0));
 
-    let (_state, stats, measurement_count) = run_typed(
+    let (_state, stats, measurement_count) = run_chain(
         (),
         &mut rng,
         &mut kernel,
@@ -321,6 +325,7 @@ fn two_update_set_runs_two_static_update_types() {
             steps_per_cycle: 2,
             cycles_per_check: 1,
         },
+        NoopCallbacks,
     )
     .unwrap();
 
@@ -401,7 +406,7 @@ fn weighted_update_set_runs_many_updates_of_one_type() {
     let mut kernel = MetropolisKernel::new(updates);
     let mut rng = SeedSource::new(123).rng_for(ChainId(0));
 
-    let (_state, stats, measurement_count) = run_typed(
+    let (_state, stats, measurement_count) = run_chain(
         (),
         &mut rng,
         &mut kernel,
@@ -411,6 +416,7 @@ fn weighted_update_set_runs_many_updates_of_one_type() {
             steps_per_cycle: 1,
             cycles_per_check: 1,
         },
+        NoopCallbacks,
     )
     .unwrap();
 
@@ -488,7 +494,7 @@ fn weighted_update_set_supports_enum_wrapped_heterogeneous_updates() {
     let mut kernel = MetropolisKernel::new(updates);
     let mut rng = SeedSource::new(123).rng_for(ChainId(0));
 
-    let (state, stats, measurement_count) = run_typed(
+    let (state, stats, measurement_count) = run_chain(
         0_i64,
         &mut rng,
         &mut kernel,
@@ -498,6 +504,7 @@ fn weighted_update_set_supports_enum_wrapped_heterogeneous_updates() {
             steps_per_cycle: 2,
             cycles_per_check: 1,
         },
+        NoopCallbacks,
     )
     .unwrap();
 
@@ -581,7 +588,7 @@ fn update_attempt_can_draw_from_chain_rng() {
         let mut kernel = MetropolisKernel::new(updates);
         let mut rng = SeedSource::new(seed).rng_for(ChainId(0));
 
-        run_typed(
+        run_chain(
             (),
             &mut rng,
             &mut kernel,
@@ -591,6 +598,7 @@ fn update_attempt_can_draw_from_chain_rng() {
                 steps_per_cycle: 8,
                 cycles_per_check: 1,
             },
+            NoopCallbacks,
         )
         .unwrap();
 

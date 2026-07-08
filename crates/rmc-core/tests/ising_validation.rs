@@ -1,5 +1,5 @@
 use rmc_core::mc::{
-    run_parallel, run_typed, Measurement, MetropolisKernel, ParallelConfig, SimulationParams,
+    run_chain, Measurement, MetropolisKernel, NoopCallbacks, Runner, SimulationParams,
     SingleUpdateSet, Update,
 };
 use rmc_core::random::{uniform_index, ChainId, SeedSource};
@@ -84,7 +84,7 @@ fn infinite_temperature_ising_2x2_matches_exact_magnetization() {
     let mut kernel =
         MetropolisKernel::new(SingleUpdateSet::new(LazyInfiniteTemperatureFlip::new()));
 
-    let (_state, stats, moments) = run_typed(
+    let (_state, stats, moments) = run_chain(
         Ising2x2::ordered(),
         &mut rng,
         &mut kernel,
@@ -94,6 +94,7 @@ fn infinite_temperature_ising_2x2_matches_exact_magnetization() {
             steps_per_cycle: 4,
             cycles_per_check: 1,
         },
+        NoopCallbacks,
     )
     .unwrap();
 
@@ -291,27 +292,22 @@ fn run_ising_lattice(beta: f64) -> BinderSummary {
     const SWEEPS: u64 = 2_500;
     const BURN_IN_SWEEPS: u64 = 500;
 
-    let (_stats, summary) = run_parallel(
-        ParallelConfig {
-            chains: 8,
-            seed: SeedSource::new(0x15_1eaf ^ beta.to_bits()),
-            params: SimulationParams {
-                max_steps: SWEEPS * (L * L) as u64,
-                steps_per_cycle: (L * L) as u64,
-                cycles_per_check: 1,
-            },
-        },
-        |_chain| {
-            let state = IsingLattice::ordered(L, L);
-            let update = MetropolisSpinFlip::new(beta);
-            let kernel = MetropolisKernel::new(SingleUpdateSet::new(update));
-            let measurement = BinderMeasurement::new(BURN_IN_SWEEPS);
-            (state, kernel, measurement)
-        },
-    )
+    let report = Runner::new(SeedSource::new(0x15_1eaf ^ beta.to_bits()), |_chain| {
+        let state = IsingLattice::ordered(L, L);
+        let update = MetropolisSpinFlip::new(beta);
+        let kernel = MetropolisKernel::new(SingleUpdateSet::new(update));
+        let measurement = BinderMeasurement::new(BURN_IN_SWEEPS);
+        (state, kernel, measurement)
+    })
+    .chains(8)
+    .run(SimulationParams {
+        max_steps: SWEEPS * (L * L) as u64,
+        steps_per_cycle: (L * L) as u64,
+        cycles_per_check: 1,
+    })
     .unwrap();
 
-    summary
+    report.output
 }
 
 #[test]

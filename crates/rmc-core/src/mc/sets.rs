@@ -142,6 +142,10 @@ impl<U> UpdateSet for SingleUpdateSet<U> {
     fn stats(&self) -> &[UpdateStats] {
         &self.stats
     }
+
+    fn reset_stats(&mut self) {
+        self.stats = Default::default();
+    }
 }
 
 impl<State, R, U> SteppingUpdateSet<State, R> for SingleUpdateSet<U>
@@ -320,6 +324,10 @@ impl<U> UpdateSet for WeightedUpdateSet<U> {
     fn stats(&self) -> &[UpdateStats] {
         &self.stats
     }
+
+    fn reset_stats(&mut self) {
+        self.stats.fill(UpdateStats::default());
+    }
 }
 
 impl<State, R, U> SteppingUpdateSet<State, R> for WeightedUpdateSet<U>
@@ -443,6 +451,10 @@ impl<A, B> TwoUpdateSet<A, B> {
 impl<A, B> UpdateSet for TwoUpdateSet<A, B> {
     fn stats(&self) -> &[UpdateStats] {
         &self.stats
+    }
+
+    fn reset_stats(&mut self) {
+        self.stats = Default::default();
     }
 }
 

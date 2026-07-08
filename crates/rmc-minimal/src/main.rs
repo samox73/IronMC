@@ -2,8 +2,8 @@ use std::hint::black_box;
 use std::time::{Duration, Instant};
 
 use rmc_core::mc::{
-    run_typed, run_typed_with_callbacks, MetropolisKernel, NullMeasurement, RunCallbacks,
-    SimulationCtx, SimulationParams,
+    run_chain, MetropolisKernel, NoopCallbacks, NullMeasurement, RunCallbacks, SimulationCtx,
+    SimulationParams,
 };
 use rmc_core::random::{ChainId, SeedSource};
 use rmc_core::RmcError;
@@ -147,18 +147,19 @@ fn run_full_once(
     let mut rng = SeedSource::new(SEED).rng_for(ChainId(0));
     let mut kernel = MetropolisKernel::new(build_full()?);
     let state = MinimalState::default();
-    let (state, _, _) = run_typed(
+    let (state, _, _) = run_chain(
         state,
         &mut rng,
         &mut kernel,
         NullMeasurement,
         params(warmup_steps),
+        NoopCallbacks,
     )?;
 
     let measurement = MinimalMeasurement::new(DEFAULT_BATCH_SIZE)?;
     let mut progress = StderrProgress::new(max_steps);
     let start = Instant::now();
-    let (_state, stats, output) = run_typed_with_callbacks(
+    let (_state, stats, output) = run_chain(
         state,
         &mut rng,
         &mut kernel,
@@ -189,17 +190,18 @@ fn run_bare_once(max_steps: u64, warmup_steps: u64) -> rmc_core::Result<RunResul
     let mut rng = SeedSource::new(SEED).rng_for(ChainId(0));
     let mut kernel = MetropolisKernel::new(build_bare()?);
     let state = MinimalState::default();
-    let (state, _, _) = run_typed(
+    let (state, _, _) = run_chain(
         state,
         &mut rng,
         &mut kernel,
         NullMeasurement,
         params(warmup_steps),
+        NoopCallbacks,
     )?;
 
     let mut progress = StderrProgress::new(max_steps);
     let start = Instant::now();
-    let (_state, stats, output) = run_typed_with_callbacks(
+    let (_state, stats, output) = run_chain(
         state,
         &mut rng,
         &mut kernel,

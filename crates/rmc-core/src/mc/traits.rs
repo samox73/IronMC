@@ -91,7 +91,7 @@ macro_rules! dispatch_update {
 /// A per-cycle measurement of a chain's `State`, returning a typed `Output` by ownership.
 ///
 /// A stateless measurement is `Measurement<()>`. Results flow back through `finish` with no
-/// `Any`/downcast; see [`run_typed`](crate::mc::run_typed).
+/// `Any`/downcast; see [`run_chain`](crate::mc::run_chain).
 pub trait Measurement<State> {
     type Output;
 
@@ -119,6 +119,7 @@ pub struct UpdateStats {
 /// Common, dispatch-free view over an update set's per-update statistics.
 pub trait UpdateSet {
     fn stats(&self) -> &[UpdateStats];
+    fn reset_stats(&mut self);
 }
 
 /// An update set that can be driven for one MC step against a chain's `State`.
@@ -138,6 +139,8 @@ pub trait Kernel<State, R> {
     }
 
     fn step(&mut self, state: &mut State, rng: &mut R) -> Result<StepOutcome>;
+
+    fn reset_stats(&mut self) {}
 }
 
 pub trait RunCallbacks<C> {
@@ -146,5 +149,23 @@ pub trait RunCallbacks<C> {
     fn on_checkpoint(&mut self, _ctx: &C) {}
     fn stop_when(&mut self, _ctx: &C) -> bool {
         false
+    }
+}
+
+impl<Ctx, C: RunCallbacks<Ctx> + ?Sized> RunCallbacks<Ctx> for &mut C {
+    fn on_step(&mut self, ctx: &Ctx) {
+        (**self).on_step(ctx)
+    }
+
+    fn on_cycle(&mut self, ctx: &Ctx) {
+        (**self).on_cycle(ctx)
+    }
+
+    fn on_checkpoint(&mut self, ctx: &Ctx) {
+        (**self).on_checkpoint(ctx)
+    }
+
+    fn stop_when(&mut self, ctx: &Ctx) -> bool {
+        (**self).stop_when(ctx)
     }
 }

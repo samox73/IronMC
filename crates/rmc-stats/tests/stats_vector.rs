@@ -1,7 +1,6 @@
 use nalgebra::{DMatrix, DVector};
 use rmc_core::mc::{
-    run_parallel, Measurement, MetropolisKernel, ParallelConfig, SimulationParams, SingleUpdateSet,
-    Update,
+    Measurement, MetropolisKernel, Runner, SimulationParams, SingleUpdateSet, Update,
 };
 use rmc_core::random::{ChainId, SeedSource};
 use rmc_core::Merge;
@@ -127,7 +126,7 @@ fn vector_moments_merge_matches_single_pass_accumulation() {
 
 #[test]
 fn vector_covariance_matches_closed_form_matrix_statistics() {
-    let covariance = VectorCovariance::from_samples(
+    let moments = VectorCovariance::from_samples(
         2,
         [
             vector(&[1.0, 2.0]),
@@ -137,27 +136,27 @@ fn vector_covariance_matches_closed_form_matrix_statistics() {
     )
     .unwrap();
 
-    assert_eq!(covariance.count(), 3);
-    assert_vector_close(&covariance.sum(), &vector(&[9.0, 14.0]));
-    assert_vector_close(&covariance.mean().unwrap(), &vector(&[3.0, 14.0 / 3.0]));
+    assert_eq!(moments.count(), 3);
+    assert_vector_close(&moments.sum(), &vector(&[9.0, 14.0]));
+    assert_vector_close(&moments.mean().unwrap(), &vector(&[3.0, 14.0 / 3.0]));
     assert_matrix_close(
-        &covariance.sum_cross_deviations(),
+        &moments.sum_cross_deviations(),
         &matrix(2, 2, &[8.0, 12.0, 12.0, 56.0 / 3.0]),
     );
     assert_matrix_close(
-        &covariance.population_covariance().unwrap(),
+        &moments.population_covariance().unwrap(),
         &matrix(2, 2, &[8.0 / 3.0, 4.0, 4.0, 56.0 / 9.0]),
     );
     assert_matrix_close(
-        &covariance.sample_covariance().unwrap(),
+        &moments.sample_covariance().unwrap(),
         &matrix(2, 2, &[4.0, 6.0, 6.0, 28.0 / 3.0]),
     );
     assert_vector_close(
-        &covariance.population_variance().unwrap(),
+        &moments.population_variance().unwrap(),
         &vector(&[8.0 / 3.0, 56.0 / 9.0]),
     );
     assert_vector_close(
-        &covariance.sample_variance().unwrap(),
+        &moments.sample_variance().unwrap(),
         &vector(&[4.0, 28.0 / 3.0]),
     );
 }
@@ -230,25 +229,21 @@ impl Measurement<u64> for StateVectorMoments {
 
 #[test]
 fn vector_moments_merges_parallel_measurement_outputs() {
-    let (_stats, moments) = run_parallel(
-        ParallelConfig {
-            chains: 4,
-            seed: SeedSource::new(45),
-            params: SimulationParams {
-                max_steps: 5,
-                steps_per_cycle: 1,
-                cycles_per_check: 1,
-            },
-        },
-        |_chain: ChainId| {
-            (
-                0_u64,
-                MetropolisKernel::new(SingleUpdateSet::new(IncrementState)),
-                StateVectorMoments::new(),
-            )
-        },
-    )
-    .unwrap();
+    let moments = Runner::new(SeedSource::new(45), |_chain: ChainId| {
+        (
+            0_u64,
+            MetropolisKernel::new(SingleUpdateSet::new(IncrementState)),
+            StateVectorMoments::new(),
+        )
+    })
+    .chains(4)
+    .run(SimulationParams {
+        max_steps: 5,
+        steps_per_cycle: 1,
+        cycles_per_check: 1,
+    })
+    .unwrap()
+    .output;
 
     assert_eq!(moments.count(), 20);
     assert_vector_close(&moments.mean().unwrap(), &vector(&[3.0, 6.0]));
