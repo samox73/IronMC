@@ -3,7 +3,7 @@
 use rand_core::RngCore;
 use rmc_core::mc::{
     MetropolisKernel, SimulationCtx, SimulationParams, SimulationStats, SingleUpdateSet,
-    StepOutcome, TwoUpdateSet, Update, UpdateSet, UpdateStats, WeightedUpdate, WeightedUpdateSet,
+    StepOutcome, Update, UpdateSet, UpdateStats, WeightedUpdate, WeightedUpdateSet,
 };
 use rmc_core::random::{ChainId, DefaultRng, SeedSource};
 use serde::de::DeserializeOwned;
@@ -95,21 +95,6 @@ fn serde_round_trips_static_update_sets() {
     let restored_single: SingleUpdateSet<SerializableUpdate> = round_trip(&single);
     assert_eq!(restored_single.update().delta, 3);
     assert_eq!(restored_single.stats(), &[UpdateStats::default()]);
-
-    let two = TwoUpdateSet::with_ratios(
-        SerializableUpdate { delta: 1 },
-        2.0,
-        3.0,
-        SerializableUpdate { delta: -1 },
-        4.0,
-        5.0,
-    )
-    .unwrap();
-    let restored_two: TwoUpdateSet<SerializableUpdate, SerializableUpdate> = round_trip(&two);
-    assert_eq!(restored_two.first().delta, 1);
-    assert_eq!(restored_two.second().delta, -1);
-    assert_eq!(restored_two.weights(), [2.0, 4.0]);
-    assert_eq!(restored_two.ratios(), [3.0, 5.0]);
 
     let weighted = WeightedUpdateSet::new(vec![
         WeightedUpdate::new(SerializableUpdate { delta: 1 }, 2.0),
