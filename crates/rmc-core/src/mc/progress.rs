@@ -7,14 +7,19 @@ use super::traits::RunCallbacks;
 pub struct IndicatifProgress {
     bar: ProgressBar,
     last_steps_done: u64,
+    /// Update the bar only every 1% of total steps; per-cycle updates lock the
+    /// (Multi)ProgressBar mutex and serialize parallel chains.
+    steps_per_update: u64,
     finish_message: Option<String>,
 }
 
 impl IndicatifProgress {
     pub fn new(bar: ProgressBar) -> Self {
+        let steps_per_update = (bar.length().unwrap_or(0) / 100).max(1);
         Self {
             bar,
             last_steps_done: 0,
+            steps_per_update,
             finish_message: None,
         }
     }
@@ -46,10 +51,11 @@ impl IndicatifProgress {
 impl RunCallbacks<SimulationCtx> for IndicatifProgress {
     fn on_cycle(&mut self, ctx: &SimulationCtx) {
         let delta = ctx.steps_done.saturating_sub(self.last_steps_done);
-        if delta > 0 {
-            self.bar.inc(delta);
-            self.last_steps_done = ctx.steps_done;
+        if delta < self.steps_per_update {
+            return;
         }
+        self.bar.inc(delta);
+        self.last_steps_done = ctx.steps_done;
         self.bar.set_message(format!("cycle {}", ctx.cycles_done));
     }
 }
