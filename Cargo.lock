@@ -237,17 +237,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34aa73646ffb006b8f5147f3dc182bd4bcb190227ce861fc4a4844bf8e3cb2c0"
 
 [[package]]
-name = "erased-serde"
-version = "0.4.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2add8a07dd6a8d93ff627029c51de145e12686fbc36ecb298ac22e74cf02dec"
-dependencies = [
- "serde",
- "serde_core",
- "typeid",
-]
-
-[[package]]
 name = "errno"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -784,6 +773,7 @@ dependencies = [
  "rmc-io",
  "rmc-numeric",
  "rmc-stats",
+ "serde_json",
 ]
 
 [[package]]
@@ -791,7 +781,6 @@ name = "rmc-core"
 version = "0.1.0"
 dependencies = [
  "criterion",
- "erased-serde",
  "indicatif",
  "num-complex",
  "proptest",
@@ -840,7 +829,6 @@ name = "rmc-io"
 version = "0.1.0"
 dependencies = [
  "bincode",
- "erased-serde",
  "rand_core 0.6.4",
  "rmc-core",
  "serde",
@@ -1084,12 +1072,6 @@ dependencies = [
  "num-integer",
  "strength_reduce",
 ]
-
-[[package]]
-name = "typeid"
-version = "1.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc7d623258602320d5c55d1bc22793b57daff0ec7efc270ea7d55ce1d5f5471c"
 
 [[package]]
 name = "typenum"

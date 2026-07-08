@@ -28,6 +28,5 @@ rmc-io = { workspace = true, optional = true }
 rmc-numeric = { workspace = true, optional = true }
 rmc-stats = { workspace = true, optional = true }
 
-[[example]]
-name = "sink_results"
-required-features = ["io"]
+[dev-dependencies]
+serde_json.workspace = true

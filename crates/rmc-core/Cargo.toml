@@ -16,7 +16,6 @@ serde = [
 ]
 
 [dependencies]
-erased-serde.workspace = true
 indicatif.workspace = true
 num-complex.workspace = true
 rand.workspace = true

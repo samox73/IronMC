@@ -1,5 +1,4 @@
 use rand_core::RngCore;
-use rmc_core::mc::ResultSink;
 use rmc_core::{
     mc::{
         run_chain, Measurement, MetropolisKernel, SimulationParams, SingleUpdateSet, Update,

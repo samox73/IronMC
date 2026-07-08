@@ -9,7 +9,6 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use rmc_core::mc::ResultSink;
 use rmc_core::RmcError;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -40,10 +39,7 @@ pub struct Checkpoint<T> {
     pub payload: T,
 }
 
-/// In-memory result sink for dynamic measurements.
-///
-/// Paths are written exactly as passed by `rmc-core`'s scoped sink, typically
-/// `"{measurement}/{key}"`.
+/// In-memory `path -> JSON value` map with checkpoint round-tripping.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct MapSink {
     results: ResultMap,
@@ -62,6 +58,17 @@ impl MapSink {
 
     pub fn into_results(self) -> ResultMap {
         self.results
+    }
+
+    /// Insert a serializable value under `path`; duplicate paths are rejected.
+    pub fn put<T: serde::Serialize>(&mut self, path: &str, value: &T) -> rmc_core::Result<()> {
+        if self.results.contains_key(path) {
+            return Err(RmcError::DuplicateResult(path.to_string()));
+        }
+        let value = serde_json::to_value(value)
+            .map_err(|err| RmcError::Message(format!("result serialization failed: {err}")))?;
+        self.results.insert(path.to_string(), value);
+        Ok(())
     }
 
     pub fn into_checkpoint(self) -> Checkpoint<ResultMap> {
@@ -100,19 +107,6 @@ impl MapSink {
 impl From<ResultMap> for MapSink {
     fn from(results: ResultMap) -> Self {
         Self { results }
-    }
-}
-
-impl ResultSink for MapSink {
-    fn put(&mut self, path: &str, value: &dyn erased_serde::Serialize) -> rmc_core::Result<()> {
-        if self.results.contains_key(path) {
-            return Err(RmcError::DuplicateResult(path.to_string()));
-        }
-
-        let value = erased_serde::serialize(value, serde_json::value::Serializer)
-            .map_err(|err| RmcError::Message(format!("result serialization failed: {err}")))?;
-        self.results.insert(path.to_string(), value);
-        Ok(())
     }
 }
 
