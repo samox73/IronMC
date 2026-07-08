@@ -1,7 +1,5 @@
 use crate::{Result, RmcError};
 
-use super::sets::SinkMeasurementSet;
-use super::sink::ResultSink;
 use super::traits::{Kernel, Measurement, RunCallbacks};
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -146,46 +144,6 @@ where
     }
 
     Ok(stats)
-}
-
-/// Run with sink measurements that emit named artifacts into `sink`.
-///
-/// This path is output-only: measurements do not return Rust-native structured values. Use
-/// [`run_chain`] when typed results should flow back by ownership.
-pub fn run_with_sink<State, R, K>(
-    state: State,
-    rng: &mut R,
-    kernel: &mut K,
-    measurements: &mut SinkMeasurementSet<State>,
-    sink: &mut dyn ResultSink,
-    params: SimulationParams,
-) -> Result<(State, SimulationStats)>
-where
-    K: Kernel<State, R>,
-{
-    struct SinkAdapter<'a, State>(&'a mut SinkMeasurementSet<State>);
-
-    impl<State> Measurement<State> for SinkAdapter<'_, State> {
-        type Output = ();
-
-        fn measure(&mut self, state: &State) {
-            self.0.measure_all(state)
-        }
-
-        fn finish(self) -> Self::Output {}
-    }
-
-    measurements.refresh_active();
-    let (state, stats, ()) = run_chain(
-        state,
-        rng,
-        kernel,
-        SinkAdapter(measurements),
-        params,
-        NoopCallbacks,
-    )?;
-    measurements.write_all(sink)?;
-    Ok((state, stats))
 }
 
 /// Drive one chain to completion.

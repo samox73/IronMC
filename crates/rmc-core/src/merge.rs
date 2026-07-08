@@ -36,3 +36,17 @@ impl Merge for f64 {
         self + other
     }
 }
+
+macro_rules! impl_merge_tuple {
+    ($($t:ident $idx:tt),+) => {
+        impl<$($t: Merge),+> Merge for ($($t,)+) {
+            fn merge(self, other: Self) -> Self {
+                ($(self.$idx.merge(other.$idx),)+)
+            }
+        }
+    };
+}
+
+impl_merge_tuple!(T0 0, T1 1);
+impl_merge_tuple!(T0 0, T1 1, T2 2);
+impl_merge_tuple!(T0 0, T1 1, T2 2, T3 3);

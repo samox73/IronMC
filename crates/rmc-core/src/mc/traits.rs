@@ -91,13 +91,34 @@ macro_rules! dispatch_update {
 /// A per-cycle measurement of a chain's `State`, returning a typed `Output` by ownership.
 ///
 /// A stateless measurement is `Measurement<()>`. Results flow back through `finish` with no
-/// `Any`/downcast; see [`run_chain`](crate::mc::run_chain).
+/// `Any`/downcast; see [`run_chain`](crate::mc::run_chain). Several measurements can be composed
+/// as a tuple.
 pub trait Measurement<State> {
     type Output;
 
     fn measure(&mut self, state: &State);
     fn finish(self) -> Self::Output;
 }
+
+macro_rules! impl_measurement_tuple {
+    ($($m:ident $idx:tt),+) => {
+        impl<State, $($m: Measurement<State>),+> Measurement<State> for ($($m,)+) {
+            type Output = ($($m::Output,)+);
+
+            fn measure(&mut self, state: &State) {
+                $(self.$idx.measure(state);)+
+            }
+
+            fn finish(self) -> Self::Output {
+                ($(self.$idx.finish(),)+)
+            }
+        }
+    };
+}
+
+impl_measurement_tuple!(M0 0, M1 1);
+impl_measurement_tuple!(M0 0, M1 1, M2 2);
+impl_measurement_tuple!(M0 0, M1 1, M2 2, M3 3);
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Copy, Debug, PartialEq)]

@@ -19,7 +19,6 @@ license = "MIT"
 
 [workspace.dependencies]
 criterion = "0.5"
-erased-serde = "0.4"
 indicatif = "0.17"
 nalgebra = { version = "0.33", default-features = false, features = ["std"] }
 num-complex = "0.4"
