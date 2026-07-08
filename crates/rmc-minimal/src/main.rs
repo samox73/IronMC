@@ -7,7 +7,7 @@ use rmc_core::mc::{
 };
 use rmc_core::random::{ChainId, SeedSource};
 use rmc_core::RmcError;
-use rmc_minimal::{build_bare, build_full, MinimalMeasurement, MinimalState, DEFAULT_BATCH_SIZE};
+use rmc_minimal::{build_bare, build_full, minimal_measurement, MinimalState, DEFAULT_BATCH_SIZE};
 use rmc_stats::ScalarJackknife;
 
 const DEFAULT_WARMUP_STEPS: u64 = 100_000;
@@ -156,7 +156,7 @@ fn run_full_once(
         NoopCallbacks,
     )?;
 
-    let measurement = MinimalMeasurement::new(DEFAULT_BATCH_SIZE)?;
+    let measurement = minimal_measurement(DEFAULT_BATCH_SIZE)?;
     let mut progress = StderrProgress::new(max_steps);
     let start = Instant::now();
     let (_state, stats, output) = run_chain(

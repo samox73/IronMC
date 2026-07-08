@@ -13,10 +13,9 @@
 //!
 //! The lattice is owned as the chain state. The update receives `&mut IsingLattice` when it
 //! proposes and accepts a flip, while the measurement receives `&IsingLattice` once per simulation
-//! cycle. The measurement records the magnetization per spin and absolute magnetization per spin,
-//! then returns a typed `IsingSummary` from `Measurement::finish`. `IsingSummary` implements
-//! `Merge`, which lets `Runner` combine independent chains with the same
-//! reduction mechanism used by the rest of the prototype.
+//! cycle. The default `BinnedScalar` measurement path records magnetization per spin and absolute
+//! magnetization per spin with block/jackknife error bars; tuple `Measurement`/`Merge` support lets
+//! `Runner` combine independent chains without a hand-written summary type.
 //!
 //! The example runs the same model in two modes:
 //!
@@ -27,11 +26,10 @@
 //! in the hot path. Each rayon worker owns a complete independent chain state.
 
 use rmc::mc::{
-    run_chain, Measurement, MetropolisKernel, NoopCallbacks, Runner, SimulationParams,
-    SingleUpdateSet, Update,
+    run_chain, MetropolisKernel, NoopCallbacks, Runner, SimulationParams, SingleUpdateSet, Update,
 };
 use rmc::random::{uniform_index, ChainId, Rng, SeedSource};
-use rmc::Merge;
+use rmc::stats::BinnedScalar;
 
 #[derive(Clone)]
 struct IsingLattice {
@@ -55,6 +53,10 @@ impl IsingLattice {
 
     fn magnetization(&self) -> i64 {
         self.spins.iter().map(|spin| i64::from(*spin)).sum()
+    }
+
+    fn magnetization_per_spin(&self) -> f64 {
+        self.magnetization() as f64 / self.len() as f64
     }
 
     fn delta_energy_for_flip(&self, idx: usize) -> i32 {
@@ -115,79 +117,22 @@ impl Update<IsingLattice> for SpinFlipUpdate {
     }
 }
 
-struct MagnetizationMeasurement {
-    samples: u64,
-    magnetization_sum: f64,
-    abs_magnetization_sum: f64,
-}
-
-impl MagnetizationMeasurement {
-    fn new() -> Self {
-        Self {
-            samples: 0,
-            magnetization_sum: 0.0,
-            abs_magnetization_sum: 0.0,
-        }
-    }
-}
-
-impl Measurement<IsingLattice> for MagnetizationMeasurement {
-    type Output = IsingSummary;
-
-    fn measure(&mut self, state: &IsingLattice) {
-        let spins = state.len() as f64;
-        let magnetization = state.magnetization() as f64 / spins;
-        self.samples += 1;
-        self.magnetization_sum += magnetization;
-        self.abs_magnetization_sum += magnetization.abs();
-    }
-
-    fn finish(self) -> Self::Output {
-        IsingSummary {
-            samples: self.samples,
-            magnetization_sum: self.magnetization_sum,
-            abs_magnetization_sum: self.abs_magnetization_sum,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-struct IsingSummary {
-    samples: u64,
-    magnetization_sum: f64,
-    abs_magnetization_sum: f64,
-}
-
-impl IsingSummary {
-    fn mean_magnetization(&self) -> f64 {
-        self.magnetization_sum / self.samples as f64
-    }
-
-    fn mean_abs_magnetization(&self) -> f64 {
-        self.abs_magnetization_sum / self.samples as f64
-    }
-}
-
-impl Merge for IsingSummary {
-    fn merge(self, other: Self) -> Self {
-        Self {
-            samples: self.samples + other.samples,
-            magnetization_sum: self.magnetization_sum + other.magnetization_sum,
-            abs_magnetization_sum: self.abs_magnetization_sum + other.abs_magnetization_sum,
-        }
-    }
-}
-
 fn build_chain(
     _chain: ChainId,
 ) -> (
     IsingLattice,
     MetropolisKernel<SingleUpdateSet<SpinFlipUpdate>>,
-    MagnetizationMeasurement,
+    (
+        BinnedScalar<impl Fn(&IsingLattice) -> f64>,
+        BinnedScalar<impl Fn(&IsingLattice) -> f64>,
+    ),
 ) {
     let state = IsingLattice::ordered(16, 16);
     let update = SpinFlipUpdate::new(0.44); // critical point is at beta=0.440686
-    let measurement = MagnetizationMeasurement::new();
+    let measurement = (
+        BinnedScalar::new(24, |s: &IsingLattice| s.magnetization_per_spin()).unwrap(),
+        BinnedScalar::new(24, |s: &IsingLattice| s.magnetization_per_spin().abs()).unwrap(),
+    );
     let kernel = MetropolisKernel::new(SingleUpdateSet::new(update));
     (state, kernel, measurement)
 }
@@ -204,7 +149,7 @@ fn main() -> rmc::Result<()> {
     let seed = SeedSource::new(0x15_1eaf);
     let mut rng = seed.rng_for(ChainId(0));
     let (state, mut kernel, measurement) = build_chain(ChainId(0));
-    let (_state, single_stats, single_summary) = run_chain(
+    let (_state, single_stats, (single_m, single_abs_m)) = run_chain(
         state,
         &mut rng,
         &mut kernel,
@@ -214,11 +159,13 @@ fn main() -> rmc::Result<()> {
     )?;
 
     println!(
-        "single chain: steps={}, samples={}, mean_m={:.3}, mean_abs_m={:.3}",
+        "single chain: steps={}, samples={}, mean_m={:.3} +/- {:.3}, mean_abs_m={:.3} +/- {:.3}",
         single_stats.steps_done,
-        single_summary.samples,
-        single_summary.mean_magnetization(),
-        single_summary.mean_abs_magnetization()
+        single_m.values().len(),
+        single_m.estimate().unwrap(),
+        single_m.standard_error().unwrap(),
+        single_abs_m.estimate().unwrap(),
+        single_abs_m.standard_error().unwrap()
     );
 
     let chains = 8;
@@ -226,13 +173,16 @@ fn main() -> rmc::Result<()> {
         .chains(chains)
         .run(params())?;
 
+    let (parallel_m, parallel_abs_m) = report.output;
     println!(
-        "parallel: chains={}, steps={}, samples={}, mean_m={:.3}, mean_abs_m={:.3}",
+        "parallel: chains={}, steps={}, samples={}, mean_m={:.3} +/- {:.3}, mean_abs_m={:.3} +/- {:.3}",
         chains,
         report.stats.steps_done,
-        report.output.samples,
-        report.output.mean_magnetization(),
-        report.output.mean_abs_magnetization()
+        parallel_m.values().len(),
+        parallel_m.estimate().unwrap(),
+        parallel_m.standard_error().unwrap(),
+        parallel_abs_m.estimate().unwrap(),
+        parallel_abs_m.standard_error().unwrap()
     );
 
     Ok(())

@@ -26,7 +26,3 @@ cargo bench-compare -p rmc-minimal --bin rmc-minimal --reps 5 --metric-regex 'st
 # full polaron engine (rmc-frohlich)
 cargo bench-compare -p rmc-frohlich --bin rmc-frohlich --reps 5 --metric-regex 'steps/sec:\s*([\d.]+)' -- bench fixtures/bench-frohlich.json
 ```
-
-Caveat: the `steps/sec:` line only exists from the commit that introduced this performance harness format onward. When comparing against older revisions, prefer comparing only post-change commits; otherwise drop `--metric-regex` to use wall-clock time, noting that wall-clock is lower-is-better and old `rmc-minimal` ran multiple internal reps, or use the old-format regex `steps/sec=([\d.]+)` with care because old output contained multiple per-rep matches.
-
-Criterion micro-benchmarks remain useful for statistical comparisons of `rmc-core` hot-path changes. Use `make bench-before` to save a baseline and `make bench-after` to compare against it.

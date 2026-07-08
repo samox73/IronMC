@@ -1,9 +1,9 @@
 use rand::Rng;
 use rand_distr::{Distribution, Normal};
 use rmc_core::dispatch_update;
-use rmc_core::mc::{Measurement, WeightedUpdate, WeightedUpdateSet};
+use rmc_core::mc::{WeightedUpdate, WeightedUpdateSet};
 use rmc_core::Result;
-use rmc_stats::{Accumulator, ScalarBlockMeans, ScalarJackknife};
+use rmc_stats::BinnedScalar;
 
 pub const DEFAULT_BATCH_SIZE: usize = 1_000;
 
@@ -103,32 +103,16 @@ impl Mirror {
     pub fn reject(&mut self, _state: &mut MinimalState) {}
 }
 
-#[derive(Clone, Debug)]
-pub struct MinimalMeasurement {
-    x: ScalarBlockMeans,
-    x2: ScalarBlockMeans,
-}
-
-impl MinimalMeasurement {
-    pub fn new(batch_size: usize) -> Result<Self> {
-        Ok(Self {
-            x: ScalarBlockMeans::new(batch_size)?,
-            x2: ScalarBlockMeans::new(batch_size)?,
-        })
-    }
-}
-
-impl Measurement<MinimalState> for MinimalMeasurement {
-    type Output = (ScalarJackknife, ScalarJackknife);
-
-    fn measure(&mut self, state: &MinimalState) {
-        self.x.accumulate(state.x);
-        self.x2.accumulate(state.x * state.x);
-    }
-
-    fn finish(self) -> Self::Output {
-        (self.x.jackknife(), self.x2.jackknife())
-    }
+pub fn minimal_measurement(
+    block_size: usize,
+) -> Result<(
+    BinnedScalar<impl Fn(&MinimalState) -> f64>,
+    BinnedScalar<impl Fn(&MinimalState) -> f64>,
+)> {
+    Ok((
+        BinnedScalar::new(block_size, |s: &MinimalState| s.x)?,
+        BinnedScalar::new(block_size, |s: &MinimalState| s.x * s.x)?,
+    ))
 }
 
 pub fn build_full() -> Result<WeightedUpdateSet<MinimalUpdate>> {

@@ -1059,6 +1059,39 @@ impl Merge for ScalarBlockMeans {
     }
 }
 
+/// Measurement adapter for one scalar observable with block/jackknife error bars.
+pub struct BinnedScalar<F> {
+    extract: F,
+    acc: ScalarBlockMeans,
+}
+
+impl<F> BinnedScalar<F> {
+    /// Create a scalar measurement with `block_size` samples per completed block.
+    pub fn new(block_size: usize, extract: F) -> Result<Self> {
+        Ok(Self {
+            extract,
+            acc: ScalarBlockMeans::new(block_size)?,
+        })
+    }
+
+    /// Borrow the underlying block-means accumulator.
+    pub fn accumulator(&self) -> &ScalarBlockMeans {
+        &self.acc
+    }
+}
+
+impl<State, F: Fn(&State) -> f64> rmc_core::mc::Measurement<State> for BinnedScalar<F> {
+    type Output = ScalarJackknife;
+
+    fn measure(&mut self, state: &State) {
+        self.acc.accumulate((self.extract)(state));
+    }
+
+    fn finish(self) -> Self::Output {
+        self.acc.jackknife()
+    }
+}
+
 /// Scalar jackknife accumulator over independent block estimates.
 ///
 /// Values are stored because delete-one jackknife estimates require access to each block estimate.
