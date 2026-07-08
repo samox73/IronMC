@@ -263,6 +263,10 @@ pub struct PolaronStats {
     pub momentum: f64,
     pub max_tau: f64,
     pub sample_count: usize,
+    /// Total samples this chain expects to record (`max_steps / steps_per_cycle`); used to stop
+    /// reweighting once the next self-consistent period could no longer be completed.
+    #[serde(default)]
+    pub expected_samples: usize,
 }
 
 impl PolaronStats {
@@ -380,6 +384,7 @@ impl Merge for PolaronStats {
             momentum: self.momentum,
             max_tau: self.max_tau,
             sample_count: self.sample_count + other.sample_count,
+            expected_samples: self.expected_samples,
         }
     }
 }
@@ -437,6 +442,7 @@ impl PolaronMeasurement {
                 momentum: template.momentum,
                 max_tau: template.max_tau,
                 sample_count: 0,
+                expected_samples,
             },
         }
     }
@@ -446,6 +452,15 @@ impl PolaronMeasurement {
     }
 
     fn reevaluate_energy_estimate(&mut self, d: &Diagram) {
+        let next_period =
+            ((self.stats.self_consistent_period as f64) * self.stats.period_multiplier) as usize;
+        // If the next period cannot be completed before the run ends, resetting here would leave
+        // the final estimate with only the truncated tail — down to a single jackknife batch
+        // (=> NaN). Freeze reweighting instead and let the current window run to the end.
+        if self.stats.sample_count + next_period > self.stats.expected_samples {
+            self.stats.self_consistent_period = usize::MAX;
+            return;
+        }
         let estimate = self.stats.jackknife_energy();
         if !estimate.mean.is_finite() {
             return;
@@ -459,8 +474,7 @@ impl PolaronMeasurement {
             zeroth.reset();
         }
         self.stats.self_consistent_count = 0;
-        self.stats.self_consistent_period =
-            ((self.stats.self_consistent_period as f64) * self.stats.period_multiplier) as usize;
+        self.stats.self_consistent_period = next_period;
         self.stats
             .self_consistent_periods
             .push(self.stats.self_consistent_period);
@@ -705,7 +719,9 @@ mod tests {
                 (0.2, 0.8, nalgebra::Vector3::new(0.1, -0.2, 0.05)),
             ],
         );
-        let mut measurement = PolaronMeasurement::new(10, 30.0, 4, 6, -1.0168, 2, 2.0, &d0);
+        // expected_samples = 8 so the next period (2 * 2.0 = 4) still fits after the trigger at
+        // sample 3 (3 + 4 <= 8) and the reset goes through.
+        let mut measurement = PolaronMeasurement::new(10, 30.0, 4, 8, -1.0168, 2, 2.0, &d0);
         measurement.measure(&d0);
         measurement.measure(&d2);
         measurement.measure(&d0);
@@ -714,5 +730,46 @@ mod tests {
         assert_eq!(stats.zeroth.total_count(), 3);
         assert_eq!(stats.energy.total_count(), 0);
         assert_eq!(stats.energy_denominator().total_count(), 0);
+    }
+
+    /// When the next self-consistent period would overrun the end of the run, the reset must be
+    /// skipped and reweighting frozen, so the final window keeps all its samples.
+    #[test]
+    fn reweighting_freezes_when_next_period_cannot_complete() {
+        let d0 = Diagram::default();
+        // Trigger fires at sample 3; next period is 2 * 2.0 = 4 and 3 + 4 > expected_samples = 6.
+        let mut measurement = PolaronMeasurement::new(10, 30.0, 4, 6, -1.0168, 2, 2.0, &d0);
+        for _ in 0..6 {
+            measurement.measure(&d0);
+        }
+
+        let stats = measurement.finish();
+        assert_eq!(stats.energy.total_count(), 6);
+        assert_eq!(stats.self_consistent_period, usize::MAX);
+        assert_eq!(stats.energy_estimates.len(), 1);
+    }
+
+    /// The energy window that reaches the end of the run is never a truncated tail: it spans at
+    /// least one full self-consistent period (or the whole run, when the run is shorter than the
+    /// first period). Sweeping the run length crosses every reset boundary in range, including
+    /// the ones that used to leave a near-empty final window.
+    #[test]
+    fn final_energy_window_spans_a_full_period() {
+        let d0 = Diagram::default();
+        for expected in 1..=200usize {
+            let mut measurement =
+                PolaronMeasurement::new(10, 30.0, 4, expected, -1.0168, 3, 1.5, &d0);
+            for _ in 0..expected {
+                measurement.measure(&d0);
+            }
+
+            let stats = measurement.finish();
+            let window = stats.energy.total_count() as usize;
+            let active_period = *stats.self_consistent_periods.last().unwrap();
+            assert!(
+                window >= active_period.min(stats.sample_count),
+                "run of {expected}: final window has {window} samples, period is {active_period}"
+            );
+        }
     }
 }

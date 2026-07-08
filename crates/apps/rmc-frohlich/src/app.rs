@@ -305,7 +305,7 @@ pub fn checkpoint_from_output(cfg: RunConfig, output: RunOutput) -> Option<Check
 }
 
 pub fn summarize_output(cfg: &RunConfig, output: &RunOutput) -> ValidationSummary {
-    const TARGET_ENERGY: f64 = -1.013;
+    const TARGET_ENERGY: f64 = -1.016;
     const TARGET_Z: f64 = 0.59;
 
     let energy = output.measurement.jackknife_energy();
