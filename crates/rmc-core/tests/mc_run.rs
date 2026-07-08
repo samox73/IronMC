@@ -3,8 +3,8 @@ use std::rc::Rc;
 
 use rmc_core::mc::{
     run_chain, Measurement, MetropolisKernel, NoopCallbacks, RunCallbacks, SimulationCtx,
-    SimulationParams, SingleUpdateSet, SteppingUpdateSet, TwoUpdateSet, Update, UpdateSet,
-    WeightedUpdate, WeightedUpdateSet,
+    SimulationParams, SingleUpdateSet, SteppingUpdateSet, Update, UpdateSet, WeightedUpdate,
+    WeightedUpdateSet,
 };
 use rmc_core::random::{ChainId, SeedSource};
 
@@ -291,26 +291,30 @@ fn static_single_update_set_tracks_rejections_and_impossible_updates() {
 }
 
 #[test]
-fn two_update_set_runs_two_static_update_types() {
+fn weighted_update_set_skips_zero_weight_update() {
     let first_accepted = Rc::new(Cell::new(0));
     let first_rejected = Rc::new(Cell::new(0));
     let second_accepted = Rc::new(Cell::new(0));
     let second_rejected = Rc::new(Cell::new(0));
 
-    let updates = TwoUpdateSet::new(
-        CountingUpdate {
-            accepted: Rc::clone(&first_accepted),
-            rejected: Rc::clone(&first_rejected),
-            probability: 1.0,
-        },
-        0.0,
-        CountingUpdate {
-            accepted: Rc::clone(&second_accepted),
-            rejected: Rc::clone(&second_rejected),
-            probability: 1.0,
-        },
-        1.0,
-    )
+    let updates = WeightedUpdateSet::new(vec![
+        WeightedUpdate::new(
+            CountingUpdate {
+                accepted: Rc::clone(&first_accepted),
+                rejected: Rc::clone(&first_rejected),
+                probability: 1.0,
+            },
+            0.0,
+        ),
+        WeightedUpdate::new(
+            CountingUpdate {
+                accepted: Rc::clone(&second_accepted),
+                rejected: Rc::clone(&second_rejected),
+                probability: 1.0,
+            },
+            1.0,
+        ),
+    ])
     .unwrap();
     let mut kernel = MetropolisKernel::new(updates);
     let mut rng = SeedSource::new(123).rng_for(ChainId(0));
@@ -336,40 +340,6 @@ fn two_update_set_runs_two_static_update_types() {
     assert_eq!(kernel.updates().stats()[0].nprops, 0);
     assert_eq!(kernel.updates().stats()[1].nprops, 6);
     assert_eq!(kernel.updates().stats()[1].naccs, 6);
-}
-
-#[test]
-fn two_update_set_inverse_pair_sets_ratios() {
-    let first = CountingUpdate {
-        accepted: Rc::new(Cell::new(0)),
-        rejected: Rc::new(Cell::new(0)),
-        probability: 0.5,
-    };
-    let second = CountingUpdate {
-        accepted: Rc::new(Cell::new(0)),
-        rejected: Rc::new(Cell::new(0)),
-        probability: 0.5,
-    };
-
-    let updates = TwoUpdateSet::inverse_pair(first, 2.0, second, 4.0).unwrap();
-
-    assert_eq!(updates.weights(), [2.0, 4.0]);
-    assert_eq!(updates.ratios(), [2.0, 0.5]);
-}
-
-#[test]
-fn two_update_set_validates_weights() {
-    let first = CountingUpdate {
-        accepted: Rc::new(Cell::new(0)),
-        rejected: Rc::new(Cell::new(0)),
-        probability: 1.0,
-    };
-    let second = first.clone();
-
-    assert!(TwoUpdateSet::new(first.clone(), 0.0, second.clone(), 0.0).is_err());
-    assert!(TwoUpdateSet::new(first.clone(), -1.0, second.clone(), 1.0).is_err());
-    assert!(TwoUpdateSet::inverse_pair(first.clone(), 0.0, second.clone(), 1.0).is_err());
-    assert!(TwoUpdateSet::inverse_pair(first, 0.0, second, 0.0).is_err());
 }
 
 #[test]
@@ -550,6 +520,16 @@ fn weighted_update_set_validates_weights() {
     assert!(WeightedUpdateSet::new(Vec::<WeightedUpdate<CountingUpdate>>::new()).is_err());
     assert!(WeightedUpdateSet::new(vec![WeightedUpdate::new(update(), 0.0)]).is_err());
     assert!(WeightedUpdateSet::new(vec![WeightedUpdate::new(update(), -1.0)]).is_err());
+    assert!(WeightedUpdateSet::new(vec![
+        WeightedUpdate::new(update(), 0.0),
+        WeightedUpdate::new(update(), 0.0),
+    ])
+    .is_err());
+    assert!(WeightedUpdateSet::new(vec![
+        WeightedUpdate::new(update(), -1.0),
+        WeightedUpdate::new(update(), 1.0),
+    ])
+    .is_err());
     assert!(WeightedUpdateSet::inverse_pair(update(), 0.0, update(), 1.0).is_err());
     assert!(WeightedUpdateSet::inverse_pair(update(), 0.0, update(), 0.0).is_err());
 }

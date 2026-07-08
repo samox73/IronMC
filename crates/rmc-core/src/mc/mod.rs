@@ -11,7 +11,7 @@ pub use run::{
     run_chain, NoopCallbacks, NullMeasurement, SimulationCtx, SimulationParams, SimulationStats,
 };
 pub use runner::{RunReport, Runner};
-pub use sets::{SingleUpdateSet, TwoUpdateSet, WeightedUpdate, WeightedUpdateSet};
+pub use sets::{SingleUpdateSet, WeightedUpdate, WeightedUpdateSet};
 pub use traits::{
     Kernel, Measurement, RunCallbacks, StepOutcome, SteppingUpdateSet, Update, UpdateSet,
     UpdateStats,

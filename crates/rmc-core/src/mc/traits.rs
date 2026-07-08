@@ -146,7 +146,7 @@ pub trait UpdateSet {
 /// An update set that can be driven for one MC step against a chain's `State`.
 ///
 /// The static implementors ([`SingleUpdateSet`](crate::mc::SingleUpdateSet),
-/// [`TwoUpdateSet`](crate::mc::TwoUpdateSet), [`WeightedUpdateSet`](crate::mc::WeightedUpdateSet))
+/// [`WeightedUpdateSet`](crate::mc::WeightedUpdateSet))
 /// are monomorphized over `R`, so RNG draws inline.
 pub trait SteppingUpdateSet<State, R>: UpdateSet {
     fn prepare(&mut self, state: &mut State) -> Result<()>;
