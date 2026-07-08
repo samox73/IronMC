@@ -1,13 +1,15 @@
 [workspace]
 members = [
+    # framework
     "crates/rmc-core",
     "crates/rmc-grids",
     "crates/rmc-io",
     "crates/rmc-numeric",
-    "crates/rmc-frohlich",
-    "crates/rmc-minimal",
     "crates/rmc-stats",
     "crates/rmc",
+    # apps (physics/benchmark applications, used for perf regression testing, see README)
+    "crates/apps/rmc-frohlich",
+    "crates/apps/rmc-minimal",
 ]
 resolver = "2"
 

@@ -1,6 +1,6 @@
 # simplemc Rust workspace
 
-This workspace is the Rust port of the `simplemc` Monte-Carlo framework. The core framework lives in `rmc-core`, with supporting numeric, grid, IO, and statistics crates plus physics/application crates such as `rmc-frohlich` and the minimal benchmark harness in `rmc-minimal`. Use `make run` for the default Frohlich-polaron run and `cargo test --workspace` for the workspace test suite.
+This workspace is the Rust port of the `simplemc` Monte-Carlo framework. The framework crates live directly under `crates/` (`rmc-core` plus supporting numeric, grid, IO, and statistics crates, and the `rmc` facade). `crates/apps/` holds application crates built on the framework — `rmc-frohlich` (the full polaron engine) and `rmc-minimal` (a minimal benchmark harness) — kept in this repo so they can be used as perf regression fixtures. Use `make run` for the default Frohlich-polaron run and `cargo test --workspace` for the workspace test suite.
 
 ## Performance testing
 
