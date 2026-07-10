@@ -1,5 +1,6 @@
 //! Fixed-capacity SoA diagram layout for the GPU path.
 
+pub mod philox;
 pub mod updates;
 
 use slotmap::Key;
