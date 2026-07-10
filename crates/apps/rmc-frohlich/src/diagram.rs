@@ -1,7 +1,7 @@
-use std::f64::consts::PI;
-
 use nalgebra::Vector3;
 use slotmap::{new_key_type, Key, SlotMap};
+
+use crate::physics;
 
 new_key_type! {
     pub struct VKey;
@@ -61,9 +61,9 @@ impl Default for Diagram {
 }
 
 impl Diagram {
-    pub const MASS: f64 = 1.0;
-    pub const OMEGA: f64 = 1.0;
-    pub const DELTA_TAU_LIMIT: f64 = 10.0 * f64::EPSILON;
+    pub const MASS: f64 = physics::MASS;
+    pub const OMEGA: f64 = physics::OMEGA;
+    pub const DELTA_TAU_LIMIT: f64 = physics::DELTA_TAU_LIMIT;
 
     pub fn new() -> Self {
         let mut diagram = Self {
@@ -112,7 +112,7 @@ impl Diagram {
     }
 
     pub fn p0() -> f64 {
-        (2.0 * Self::MASS * Self::OMEGA).sqrt()
+        physics::p0()
     }
 
     pub fn v(&self, k: VKey) -> &Vertex {
@@ -200,15 +200,15 @@ impl Diagram {
     }
 
     pub fn bare_dispersion(p: &Vector3<f64>) -> f64 {
-        p.norm_squared() / (2.0 * Self::MASS)
+        physics::bare_dispersion(vec3(p))
     }
 
     pub fn dispersion(&self, p: &Vector3<f64>) -> f64 {
-        Self::bare_dispersion(p) - self.mu
+        physics::dispersion(vec3(p), self.mu)
     }
 
     pub fn bare_propagator(&self, p: &Vector3<f64>, tau: f64) -> f64 {
-        (-self.dispersion(p) * tau).exp()
+        physics::bare_propagator(vec3(p), self.mu, tau)
     }
 
     pub fn get_p_mean_range(&self, begin: VKey, end: VKey, addition: Vector3<f64>) -> Vector3<f64> {
@@ -514,27 +514,29 @@ impl Diagram {
 
 /// Normalization of the zeroth-order (no-phonon) sector weight over `[0, max_tau]`.
 pub fn norm0(max_tau: f64, energy: f64) -> f64 {
-    (1.0 - (-energy * max_tau).exp()) / energy
+    physics::norm0(max_tau, energy)
 }
 
 pub fn spherical_to_cartesian(r: f64, theta: f64, phi: f64) -> Vector3<f64> {
-    Vector3::new(
-        r * phi.cos() * theta.sin(),
-        r * phi.sin() * theta.sin(),
-        r * theta.cos(),
-    )
+    vector3(physics::spherical_to_cartesian(r, theta, phi))
 }
 
 pub fn theta_from_cartesian(r: &Vector3<f64>) -> f64 {
-    (r.z / r.norm()).acos()
+    physics::theta_from_cartesian(vec3(r))
 }
 
 pub fn phi_from_cartesian(r: &Vector3<f64>) -> f64 {
-    r.y.atan2(r.x)
+    physics::phi_from_cartesian(vec3(r))
 }
 
 pub fn draw_new_q_from_uniforms(r1: f64, r2: f64, r3: f64) -> Vector3<f64> {
-    let theta = (1.0 - 2.0 * r1).acos();
-    let q = Diagram::p0() / r2 - Diagram::p0();
-    spherical_to_cartesian(q, theta, 2.0 * PI * r3)
+    vector3(physics::draw_new_q_from_uniforms(r1, r2, r3))
+}
+
+pub(crate) fn vec3(p: &Vector3<f64>) -> physics::Vec3 {
+    [p.x, p.y, p.z]
+}
+
+pub(crate) fn vector3(p: physics::Vec3) -> Vector3<f64> {
+    Vector3::new(p[0], p[1], p[2])
 }

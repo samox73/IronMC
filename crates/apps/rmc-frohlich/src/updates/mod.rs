@@ -14,7 +14,10 @@ use rmc_core::Result;
 use slotmap::Key;
 
 use crate::diagram::VKey;
-use crate::diagram::{phi_from_cartesian, spherical_to_cartesian, theta_from_cartesian, Diagram};
+use crate::diagram::{
+    phi_from_cartesian, spherical_to_cartesian, theta_from_cartesian, vec3, Diagram,
+};
+use crate::physics;
 use phonon::{AddPhonon, RemovePhonon};
 
 dispatch_update! {
@@ -70,7 +73,7 @@ impl ChangeTau {
     pub fn attempt<R: Rng + ?Sized>(&mut self, d: &Diagram, rng: &mut R) -> f64 {
         let second_last = d.prev(d.tail);
         let lambda =
-            d.dispersion(&d.v(second_last).p_out) + if d.order != 0 { Diagram::OMEGA } else { 0.0 };
+            d.dispersion(&d.v(second_last).p_out) + if d.order != 0 { physics::OMEGA } else { 0.0 };
         self.tau_prime =
             safe_exponential_sample(rng.gen(), lambda, d.v(second_last).tau, d.max_tau);
         1.0
@@ -106,13 +109,11 @@ impl ChangeInternalTau {
         } else {
             d.v(next).tau
         };
-        let lambda = Diagram::bare_dispersion(&d.v(prev).p_out)
-            - Diagram::bare_dispersion(&d.v(vertex).p_out)
-            + if d.is_incoming(vertex) {
-                Diagram::OMEGA
-            } else {
-                -Diagram::OMEGA
-            };
+        let lambda = physics::change_internal_tau_lambda(
+            vec3(&d.v(prev).p_out),
+            vec3(&d.v(vertex).p_out),
+            d.is_incoming(vertex),
+        );
         self.vertex = vertex;
         self.tau_prime = safe_exponential_sample(rng.gen(), lambda, tau_previous, tau_next);
         if self.tau_prime.is_finite() {
@@ -147,14 +148,13 @@ impl RescaleDiagram {
         let mut k = d.head;
         while k != d.tail {
             let next = d.next(k);
-            let energy_i = Diagram::bare_dispersion(&d.v(k).p_out);
             let delta_s_i = (d.v(next).tau - d.v(k).tau) / d.tau();
             let phonon_count = if d.is_incoming(k) {
                 d.v(k).phonons_above
             } else {
                 d.v(k).phonons_above + 1
             };
-            energy += delta_s_i * (energy_i + Diagram::OMEGA * phonon_count as f64);
+            energy += physics::rescale_energy_term(delta_s_i, vec3(&d.v(k).p_out), phonon_count);
             k = next;
         }
 
@@ -167,11 +167,7 @@ impl RescaleDiagram {
             return 0.0;
         }
 
-        let acceptance = (2.0 * n * (self.tau_prime / d.tau()).ln()
-            - energy * (self.tau_prime - d.tau())
-            + ((energy * self.tau_prime - 2.0 * n).powi(2) - (energy * d.tau() - 2.0 * n).powi(2))
-                / (4.0 * n))
-            .exp();
+        let acceptance = physics::rescale_diagram_ratio(d.order, d.tau(), self.tau_prime, energy);
         if acceptance.is_finite() {
             acceptance
         } else {
@@ -206,7 +202,7 @@ impl ChangeQModulus {
         let q0 = d
             .get_p_mean_range(left, right, d.v(left).q)
             .dot(&(d.v(left).q / q_norm));
-        let sigma = (Diagram::MASS / (d.v(right).tau - d.v(left).tau)).sqrt();
+        let sigma = physics::change_q_modulus_sigma(d.v(right).tau - d.v(left).tau);
         let Ok(normal) = Normal::new(q0, sigma) else {
             return 0.0;
         };
@@ -243,7 +239,8 @@ impl ChangeQDirection {
         let (left, right) = random_arc(d, rng);
         let p_mean = d.get_p_mean_range(left, right, d.v(left).q);
         let q_norm = d.v(left).q.norm();
-        let a = (d.v(right).tau - d.v(left).tau) * p_mean.norm() * q_norm / Diagram::MASS;
+        let a =
+            physics::change_q_direction_a(d.v(right).tau - d.v(left).tau, p_mean.norm(), q_norm);
         if a.abs() < f64::EPSILON || !a.is_finite() {
             return 0.0;
         }
@@ -307,11 +304,13 @@ impl ChangeTopology {
 
         self.vertex1 = vertex1;
         self.vertex2 = vertex2;
-        let acceptance = (-(d.v(vertex2).tau - d.v(vertex1).tau)
-            * (Diagram::bare_dispersion(&self.p_prime)
-                - Diagram::bare_dispersion(&d.v(vertex1).p_out)
-                - Diagram::OMEGA * (c1 - c2)))
-            .exp();
+        let acceptance = physics::change_topology_ratio(
+            d.v(vertex2).tau - d.v(vertex1).tau,
+            vec3(&self.p_prime),
+            vec3(&d.v(vertex1).p_out),
+            c1,
+            c2,
+        );
         if acceptance.is_finite() {
             acceptance
         } else {

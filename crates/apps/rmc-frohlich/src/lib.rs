@@ -5,6 +5,7 @@ pub mod config;
 pub mod diagram;
 pub mod fourier;
 pub mod measurement;
+pub mod physics;
 pub mod sanity;
 pub mod update_stats;
 pub mod updates;

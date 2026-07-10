@@ -5,7 +5,8 @@ use rand::Rng;
 use rmc_core::random::{exponential_sample_bounded, uniform_index};
 use slotmap::Key;
 
-use crate::diagram::{draw_new_q_from_uniforms, Diagram, VKey};
+use crate::diagram::{draw_new_q_from_uniforms, vec3, Diagram, VKey};
+use crate::physics;
 
 /// Inserts a new phonon arc (pair of linked vertices) at a random time interval.
 #[derive(Clone, Debug, Default)]
@@ -37,12 +38,7 @@ impl AddPhonon {
 
     fn attempt_from_zero_fake<R: Rng + ?Sized>(&mut self, d: &Diagram, rng: &mut R) -> f64 {
         self.q = draw_new_q(rng);
-        2.0 * d.alpha * Diagram::OMEGA.powi(2) / PI
-            * (-(Diagram::OMEGA
-                + (self.q.norm_squared() / 2.0 - self.q.dot(&d.momentum_out())) / Diagram::MASS)
-                * d.tau())
-            .exp()
-            * (1.0 + self.q.norm() / Diagram::p0()).powi(2)
+        physics::add_phonon_zero_ratio(d.alpha, d.tau(), vec3(&d.momentum_out()), vec3(&self.q))
     }
 
     fn higher_order<R: Rng + ?Sized>(&mut self, d: &Diagram, rng: &mut R) -> f64 {
@@ -65,7 +61,7 @@ impl AddPhonon {
         }
 
         self.q = draw_new_q(rng);
-        let lambda = Diagram::OMEGA * (1.0 + self.q.norm() / Diagram::p0()).powi(2);
+        let lambda = physics::phonon_lambda(vec3(&self.q));
         self.tau2 = exponential_sample_bounded(rng.gen(), lambda, self.tau1, d.max_tau);
         if self.tau2 - self.tau1 < Diagram::DELTA_TAU_LIMIT {
             return 0.0;
@@ -86,17 +82,21 @@ impl AddPhonon {
         self.vertex1 = vertex1;
         self.vertex2 = vertex2;
 
-        let algo_ratio = (2 * d.order - 1) as f64 / d.order as f64;
-        algo_ratio * 2.0 * d.alpha * Diagram::OMEGA * delta_t / PI
-            * ((self.q.norm() * Diagram::p0() + self.q.dot(&p_mean)) * (self.tau2 - self.tau1)
-                / Diagram::MASS
-                - if vertex2.is_null() {
-                    d.dispersion(&d.momentum_out()) * (self.tau2 - d.tau())
-                } else {
-                    0.0
-                })
-            .exp()
-            * (1.0 - (-(lambda * (d.max_tau - self.tau1))).exp())
+        let tail_extension_exponent = if vertex2.is_null() {
+            d.dispersion(&d.momentum_out()) * (self.tau2 - d.tau())
+        } else {
+            0.0
+        };
+        physics::add_phonon_higher_ratio(
+            d.alpha,
+            d.order,
+            delta_t,
+            vec3(&self.q),
+            vec3(&p_mean),
+            self.tau2 - self.tau1,
+            tail_extension_exponent,
+            d.max_tau - self.tau1,
+        )
     }
 }
 
@@ -132,12 +132,7 @@ impl RemovePhonon {
         self.vertex1 = d.head;
         self.vertex2 = d.tail;
         self.q = d.v(d.head).q;
-        PI / (2.0 * d.alpha * Diagram::OMEGA.powi(2))
-            * ((Diagram::OMEGA
-                + (self.q.norm_squared() / 2.0 - self.q.dot(&d.momentum_out())) / Diagram::MASS)
-                * d.tau())
-            .exp()
-            / (1.0 + self.q.norm() / Diagram::p0()).powi(2)
+        physics::remove_phonon_zero_ratio(d.alpha, d.tau(), vec3(&d.momentum_out()), vec3(&self.q))
     }
 
     fn higher_order<R: Rng + ?Sized>(&mut self, d: &Diagram, rng: &mut R) -> f64 {
@@ -172,21 +167,21 @@ impl RemovePhonon {
                 d.v(d.next(left)).tau
             };
         let p_mean = d.get_p_mean_range(left, right, self.q);
-        let algo_ratio = (d.order - 1) as f64 / (2 * d.order - 3) as f64;
-        algo_ratio * PI / (2.0 * d.alpha * Diagram::OMEGA * delta_t)
-            * (-(self.q.norm() * Diagram::p0() + self.q.dot(&p_mean))
-                * (d.v(right).tau - d.v(left).tau)
-                / Diagram::MASS
-                + if d.next(right).is_null() {
-                    d.dispersion(&d.momentum_out()) * (d.v(right).tau - d.v(d.prev(right)).tau)
-                } else {
-                    0.0
-                })
-            .exp()
-            / (1.0
-                - (-(Diagram::OMEGA * (1.0 + self.q.norm() / Diagram::p0()).powi(2))
-                    * (d.max_tau - d.v(left).tau))
-                    .exp())
+        let tail_extension_exponent = if d.next(right).is_null() {
+            d.dispersion(&d.momentum_out()) * (d.v(right).tau - d.v(d.prev(right)).tau)
+        } else {
+            0.0
+        };
+        physics::remove_phonon_higher_ratio(
+            d.alpha,
+            d.order,
+            delta_t,
+            vec3(&self.q),
+            vec3(&p_mean),
+            d.v(right).tau - d.v(left).tau,
+            tail_extension_exponent,
+            d.max_tau - d.v(left).tau,
+        )
     }
 }
 
