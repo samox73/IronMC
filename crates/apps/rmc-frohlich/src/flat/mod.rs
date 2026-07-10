@@ -123,6 +123,39 @@ impl FlatDiagram {
         self.p_out[self.tail as usize]
     }
 
+    pub fn exact_estimator(&self, t0: f64) -> f64 {
+        assert!(
+            self.order > 0,
+            "exact estimator needs linked phonon vertices"
+        );
+        let lambda = t0 / self.tau() - 1.0;
+
+        let mut electron_sum = 0.0;
+        let mut slot = self.head;
+        while slot != self.tail {
+            let next = self.next[slot as usize];
+            electron_sum += physics::segment_exponent(
+                self.p_out[slot as usize],
+                self.mu,
+                self.tau[next as usize] - self.tau[slot as usize],
+            );
+            slot = next;
+        }
+
+        let mut phonon_sum = 0.0;
+        slot = self.head;
+        while slot != NULL {
+            let delta = self.tau[slot as usize] - self.tau[self.link[slot as usize] as usize];
+            if delta > 0.0 {
+                phonon_sum += delta * physics::OMEGA;
+            }
+            slot = self.next[slot as usize];
+        }
+
+        (t0 / self.tau()).powi(2 * (self.order as i32 - 1))
+            * (-(lambda * (electron_sum + phonon_sum))).exp()
+    }
+
     pub fn has_arc_capacity(&self) -> bool {
         self.vertex_count() + 2 <= self.capacity()
     }

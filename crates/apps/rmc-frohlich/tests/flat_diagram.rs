@@ -1,8 +1,9 @@
 use nalgebra::Vector3;
-use rmc_core::mc::{Kernel, MetropolisKernel};
+use rmc_core::mc::{run_chain, Kernel, MetropolisKernel, NoopCallbacks, SimulationParams};
 use rmc_core::random::{ChainId, SeedSource};
 use rmc_frohlich::flat::updates::default_update_set as default_flat_update_set;
 use rmc_frohlich::flat::{FlatDiagram, NULL};
+use rmc_frohlich::measurement::PolaronMeasurement;
 use rmc_frohlich::updates::default_update_set;
 use rmc_frohlich::Diagram;
 
@@ -121,5 +122,102 @@ fn flat_updates_match_slotmap_lockstep_smoke() {
             diagram_outcome.probability
         );
         assert_matches_diagram_at(&flat, &diagram, Some(step));
+    }
+}
+
+#[test]
+fn flat_run_chain_matches_slotmap_estimators() {
+    let params = SimulationParams {
+        max_steps: 10_000,
+        steps_per_cycle: 5,
+        cycles_per_check: 1_000_000,
+    };
+    let expected_samples = params.max_steps.div_ceil(params.steps_per_cycle) as usize;
+    let diagram = Diagram::default();
+    let flat = FlatDiagram::from_diagram(&diagram, 256).unwrap();
+    let mut diagram_rng = SeedSource::new(41).rng_for(ChainId(0));
+    let mut flat_rng = SeedSource::new(41).rng_for(ChainId(0));
+    let mut diagram_kernel = MetropolisKernel::new(default_update_set().unwrap());
+    let mut flat_kernel = MetropolisKernel::new(default_flat_update_set().unwrap());
+    let diagram_measurement = PolaronMeasurement::new(
+        50,
+        30.0,
+        8,
+        expected_samples,
+        -1.0168,
+        usize::MAX,
+        1.5,
+        &diagram,
+    );
+    let flat_measurement = PolaronMeasurement::new_flat(
+        50,
+        30.0,
+        8,
+        expected_samples,
+        -1.0168,
+        usize::MAX,
+        1.5,
+        &flat,
+    );
+
+    let (_diagram, diagram_stats, diagram_measurement) = run_chain(
+        diagram,
+        &mut diagram_rng,
+        &mut diagram_kernel,
+        diagram_measurement,
+        params,
+        NoopCallbacks,
+    )
+    .unwrap();
+    let (_flat, flat_stats, flat_measurement) = run_chain(
+        flat,
+        &mut flat_rng,
+        &mut flat_kernel,
+        flat_measurement,
+        params,
+        NoopCallbacks,
+    )
+    .unwrap();
+
+    assert_eq!(flat_stats, diagram_stats);
+    assert_eq!(
+        flat_measurement.sample_count,
+        diagram_measurement.sample_count
+    );
+    assert_eq!(
+        flat_measurement.zeroth.total_count(),
+        diagram_measurement.zeroth.total_count()
+    );
+    assert_estimate_close(
+        "energy",
+        flat_measurement.jackknife_energy().mean,
+        diagram_measurement.jackknife_energy().mean,
+    );
+    assert_estimate_close(
+        "z",
+        flat_measurement.jackknife_quasiparticle_weight().mean,
+        diagram_measurement.jackknife_quasiparticle_weight().mean,
+    );
+    for (bin, (flat, diagram)) in flat_measurement
+        .get_exact()
+        .into_iter()
+        .zip(diagram_measurement.get_exact())
+        .enumerate()
+    {
+        assert_estimate_close(&format!("exact bin {bin}"), flat, diagram);
+    }
+}
+
+fn assert_estimate_close(label: &str, actual: f64, expected: f64) {
+    if actual.is_nan() || expected.is_nan() {
+        assert!(
+            actual.is_nan() && expected.is_nan(),
+            "{label}: actual {actual}, expected {expected}"
+        );
+    } else {
+        assert!(
+            (actual - expected).abs() <= expected.abs().max(1.0) * 1.0e-8,
+            "{label}: actual {actual}, expected {expected}"
+        );
     }
 }

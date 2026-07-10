@@ -1,5 +1,3 @@
-use std::f64::consts::PI;
-
 use nalgebra::Vector3;
 use rand::Rng;
 use rmc_core::random::{exponential_sample_bounded, uniform_index};

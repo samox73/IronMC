@@ -3,6 +3,8 @@ use rmc_core::Merge;
 use rmc_grids::{Grid1d, LinearGrid};
 
 use crate::diagram::{norm0, Diagram};
+use crate::flat::FlatDiagram;
+use crate::physics;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct BatchedSum {
@@ -408,6 +410,59 @@ impl PolaronMeasurement {
         period_multiplier: f64,
         template: &Diagram,
     ) -> Self {
+        Self::from_params(
+            num_bins,
+            max_tau,
+            n_batches,
+            expected_samples,
+            energy_estimate,
+            self_consistent_period,
+            period_multiplier,
+            template.alpha,
+            template.mu,
+            template.momentum,
+            template.max_tau,
+        )
+    }
+
+    pub fn new_flat(
+        num_bins: usize,
+        max_tau: f64,
+        n_batches: usize,
+        expected_samples: usize,
+        energy_estimate: f64,
+        self_consistent_period: usize,
+        period_multiplier: f64,
+        template: &FlatDiagram,
+    ) -> Self {
+        Self::from_params(
+            num_bins,
+            max_tau,
+            n_batches,
+            expected_samples,
+            energy_estimate,
+            self_consistent_period,
+            period_multiplier,
+            template.alpha,
+            template.mu,
+            template.momentum,
+            template.max_tau,
+        )
+    }
+
+    fn from_params(
+        num_bins: usize,
+        max_tau: f64,
+        n_batches: usize,
+        expected_samples: usize,
+        energy_estimate: f64,
+        self_consistent_period: usize,
+        period_multiplier: f64,
+        alpha: f64,
+        mu: f64,
+        momentum: f64,
+        template_max_tau: f64,
+    ) -> Self {
         let grid = GridSpec::new(0.0, max_tau, num_bins + 1);
         Self {
             grid: grid.grid(),
@@ -437,10 +492,10 @@ impl PolaronMeasurement {
                 self_consistent_period,
                 self_consistent_periods: vec![self_consistent_period],
                 period_multiplier,
-                alpha: template.alpha,
-                mu: template.mu,
-                momentum: template.momentum,
-                max_tau: template.max_tau,
+                alpha,
+                mu,
+                momentum,
+                max_tau: template_max_tau,
                 sample_count: 0,
                 expected_samples,
             },
@@ -449,6 +504,10 @@ impl PolaronMeasurement {
 
     pub fn stats(&self) -> &PolaronStats {
         &self.stats
+    }
+
+    pub fn finish(self) -> PolaronStats {
+        self.stats
     }
 
     fn reevaluate_energy_estimate(&mut self, d: &Diagram) {
@@ -466,6 +525,32 @@ impl PolaronMeasurement {
             return;
         }
         let new_estimate = Diagram::bare_dispersion(&d.momentum_out()) + estimate.mean;
+        self.stats.energy_estimate = new_estimate;
+        self.stats.energy_estimates.push(new_estimate);
+        self.stats.energy.reset();
+        self.stats.a.reset();
+        if let Some(zeroth) = &mut self.stats.zeroth_for_energy {
+            zeroth.reset();
+        }
+        self.stats.self_consistent_count = 0;
+        self.stats.self_consistent_period = next_period;
+        self.stats
+            .self_consistent_periods
+            .push(self.stats.self_consistent_period);
+    }
+
+    fn reevaluate_flat_energy_estimate(&mut self, d: &FlatDiagram) {
+        let next_period =
+            ((self.stats.self_consistent_period as f64) * self.stats.period_multiplier) as usize;
+        if self.stats.sample_count + next_period > self.stats.expected_samples {
+            self.stats.self_consistent_period = usize::MAX;
+            return;
+        }
+        let estimate = self.stats.jackknife_energy();
+        if !estimate.mean.is_finite() {
+            return;
+        }
+        let new_estimate = physics::bare_dispersion(d.momentum_out()) + estimate.mean;
         self.stats.energy_estimate = new_estimate;
         self.stats.energy_estimates.push(new_estimate);
         self.stats.energy.reset();
@@ -529,7 +614,56 @@ impl Measurement<Diagram> for PolaronMeasurement {
     }
 
     fn finish(self) -> Self::Output {
+        PolaronMeasurement::finish(self)
+    }
+}
+
+impl Measurement<FlatDiagram> for PolaronMeasurement {
+    type Output = PolaronStats;
+
+    fn measure(&mut self, d: &FlatDiagram) {
+        let Some(index) = self.grid.bin_index(d.tau()) else {
+            return;
+        };
+
+        let is_zeroth = d.order == 0;
+        let t0 = self.grid.bin_center(index).expect("bin center must exist");
+        let exact_value = if is_zeroth {
+            0.0
+        } else {
+            d.exact_estimator(t0)
+        };
+        let exp_energy = if is_zeroth {
+            0.0
+        } else {
+            ((self.stats.energy_estimate - d.mu) * d.tau()).exp()
+        };
+
+        self.stats.zeroth.push(if is_zeroth { 1.0 } else { 0.0 });
+        if let Some(zeroth) = &mut self.stats.zeroth_for_energy {
+            zeroth.push(if is_zeroth { 1.0 } else { 0.0 });
+        }
         self.stats
+            .energy
+            .push(if is_zeroth { 0.0 } else { -exp_energy });
+        self.stats
+            .a
+            .push(if is_zeroth { 0.0 } else { d.tau() * exp_energy });
+        self.stats.order.push(d.order as f64);
+
+        let hist_value = if is_zeroth { 0.0 } else { 1.0 };
+        self.stats.exact.push(index, exact_value);
+        self.stats.hist.push(index, hist_value);
+
+        self.stats.sample_count += 1;
+        self.stats.self_consistent_count += 1;
+        if self.stats.self_consistent_count > self.stats.self_consistent_period {
+            self.reevaluate_flat_energy_estimate(d);
+        }
+    }
+
+    fn finish(self) -> Self::Output {
+        PolaronMeasurement::finish(self)
     }
 }
 
