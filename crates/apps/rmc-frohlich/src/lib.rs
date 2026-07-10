@@ -3,6 +3,7 @@
 pub mod app;
 pub mod config;
 pub mod diagram;
+pub mod flat;
 pub mod fourier;
 pub mod measurement;
 pub mod physics;

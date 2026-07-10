@@ -16,6 +16,8 @@ pub struct RunConfig {
     pub start_tau: f64,
     pub min_order: usize,
     pub max_order: usize,
+    #[serde(default = "default_max_order_gpu")]
+    pub max_order_gpu: usize,
     /// Number of bins in the self-energy histogram over `[0, max_tau]`.
     pub num_bins: usize,
     /// Number of jackknife batches.
@@ -46,6 +48,7 @@ impl Default for RunConfig {
             start_tau: 1.0,
             min_order: 0,
             max_order: 10_000,
+            max_order_gpu: default_max_order_gpu(),
             num_bins: 2_000,
             n_batches: 256,
             energy_estimate: -1.0168,
@@ -60,6 +63,10 @@ impl Default for RunConfig {
             cycles_per_check: 1_000_000,
         }
     }
+}
+
+pub fn default_max_order_gpu() -> usize {
+    256
 }
 
 impl RunConfig {
