@@ -102,7 +102,9 @@ impl FlatDiagram {
             flat.prev[i] = if i == 0 { NULL } else { slot - 1 };
             flat.next[i] = if i + 1 == keys.len() { NULL } else { slot + 1 };
             flat.link[i] = key_pos(&keys, vertex.link);
-            flat.push_storage(slot);
+        }
+        for &key in &diagram.storage {
+            flat.push_storage(key_pos(&keys, key));
         }
         Some(flat)
     }
