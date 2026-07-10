@@ -1,9 +1,11 @@
 //! Fixed-capacity SoA diagram layout for the GPU path.
 
+pub mod updates;
+
 use slotmap::Key;
 
 use crate::diagram::{Diagram, VKey};
-use crate::physics::Vec3;
+use crate::physics::{self, Vec3};
 
 pub const NULL: u32 = u32::MAX;
 
@@ -113,6 +115,14 @@ impl FlatDiagram {
         self.storage.len()
     }
 
+    pub fn tau(&self) -> f64 {
+        self.tau[self.tail as usize]
+    }
+
+    pub fn momentum_out(&self) -> Vec3 {
+        self.p_out[self.tail as usize]
+    }
+
     pub fn has_arc_capacity(&self) -> bool {
         self.vertex_count() + 2 <= self.capacity()
     }
@@ -149,6 +159,59 @@ impl FlatDiagram {
     pub fn is_outgoing(&self, slot: u32) -> bool {
         let link = self.link[slot as usize];
         link != NULL && self.tau[link as usize] > self.tau[slot as usize]
+    }
+
+    pub fn get_p_mean_range(&self, begin: u32, end: u32, addition: Vec3) -> Vec3 {
+        assert!(begin != NULL);
+        assert!(end != NULL);
+        let mut p_mean = [0.0; 3];
+        let mut slot = begin;
+        while slot != end {
+            let next = self.next[slot as usize];
+            assert!(next != NULL, "range end was not reachable from begin");
+            let dtau = self.tau[next as usize] - self.tau[slot as usize];
+            p_mean = add(
+                p_mean,
+                scale(add(self.p_out[slot as usize], addition), dtau),
+            );
+            slot = next;
+        }
+        scale(
+            p_mean,
+            1.0 / (self.tau[end as usize] - self.tau[begin as usize]),
+        )
+    }
+
+    pub fn get_p_mean_between(&self, tau1: f64, tau2: f64, begin: u32) -> (Vec3, u32) {
+        assert!(tau2 > tau1);
+        assert!(begin != NULL);
+        assert!(tau1 >= self.tau[begin as usize]);
+
+        let mut end = self.next[begin as usize];
+        let mut p_mean = self.p_out[begin as usize];
+        if end != NULL && self.tau[end as usize] < tau2 {
+            let mut it = begin;
+            p_mean = scale(self.p_out[it as usize], self.tau[end as usize] - tau1);
+            it = end;
+            end = self.next[end as usize];
+            while end != NULL && self.tau[end as usize] < tau2 {
+                p_mean = add(
+                    p_mean,
+                    scale(
+                        self.p_out[it as usize],
+                        self.tau[end as usize] - self.tau[it as usize],
+                    ),
+                );
+                it = end;
+                end = self.next[end as usize];
+            }
+            p_mean = add(
+                p_mean,
+                scale(self.p_out[it as usize], tau2 - self.tau[it as usize]),
+            );
+            p_mean = scale(p_mean, 1.0 / (tau2 - tau1));
+        }
+        (p_mean, end)
     }
 
     pub fn find_left_of_tau(&self, tau: f64) -> u32 {
@@ -281,6 +344,45 @@ impl FlatDiagram {
         self.order = 0;
     }
 
+    pub fn set_vertex_tau(&mut self, slot: u32, tau: f64) {
+        self.tau[slot as usize] = tau;
+    }
+
+    pub fn scale_taus(&mut self, scale: f64) {
+        let mut slot = self.head;
+        while slot != NULL {
+            self.tau[slot as usize] *= scale;
+            slot = self.next[slot as usize];
+        }
+    }
+
+    pub fn update_arc_q(&mut self, left: u32, right: u32, new_q: Vec3) {
+        assert_eq!(self.link[left as usize], right);
+        let old_q = self.q[left as usize];
+        let mut slot = left;
+        while slot != right {
+            self.p_out[slot as usize] = add(self.p_out[slot as usize], old_q);
+            self.p_out[slot as usize] = sub(self.p_out[slot as usize], new_q);
+            slot = self.next[slot as usize];
+        }
+        self.q[left as usize] = new_q;
+        self.q[right as usize] = new_q;
+    }
+
+    pub(crate) fn swap_arc_connectivity(&mut self, i: u32, j: u32) {
+        let link_i = self.link[i as usize];
+        let link_j = self.link[j as usize];
+        let q_i = self.q[i as usize];
+        let q_j = self.q[j as usize];
+
+        self.q[i as usize] = q_j;
+        self.q[j as usize] = q_i;
+        self.link[i as usize] = link_j;
+        self.link[j as usize] = link_i;
+        self.link[link_j as usize] = i;
+        self.link[link_i as usize] = j;
+    }
+
     fn splice_after(&mut self, left: u32, tau: f64, p_out: Vec3, q: Vec3) -> Option<u32> {
         let slot = self.alloc_slot()?;
         let right = self.next[left as usize];
@@ -379,4 +481,24 @@ fn add(a: Vec3, b: Vec3) -> Vec3 {
 
 fn sub(a: Vec3, b: Vec3) -> Vec3 {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+}
+
+fn scale(a: Vec3, scalar: f64) -> Vec3 {
+    [a[0] * scalar, a[1] * scalar, a[2] * scalar]
+}
+
+pub(crate) fn unit(a: Vec3) -> Vec3 {
+    scale(a, 1.0 / physics::norm(a))
+}
+
+pub(crate) fn scale_vec(a: Vec3, scalar: f64) -> Vec3 {
+    scale(a, scalar)
+}
+
+pub(crate) fn add_vec(a: Vec3, b: Vec3) -> Vec3 {
+    add(a, b)
+}
+
+pub(crate) fn sub_vec(a: Vec3, b: Vec3) -> Vec3 {
+    sub(a, b)
 }
