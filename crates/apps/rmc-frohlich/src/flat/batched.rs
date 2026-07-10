@@ -12,11 +12,14 @@ use crate::flat::philox::{keyed_draw, PhiloxRng};
 use crate::flat::updates::{default_update_set, FlatPolaronUpdate};
 use crate::flat::FlatDiagram;
 use crate::measurement::{PolaronMeasurement, PolaronStats};
+use crate::physics;
+use crate::update_stats::UpdateStatEntry;
 
 #[derive(Clone, Debug)]
 pub struct BatchedRunOutput {
     pub stats: SimulationStats,
     pub measurement: PolaronStats,
+    pub update_stats: Vec<UpdateStatEntry>,
 }
 
 pub fn run_batched(
@@ -45,13 +48,16 @@ pub fn run_batched(
                 cfg.n_batches,
                 expected_samples,
                 cfg.energy_estimate,
-                cfg.initial_self_consistent_period,
+                usize::MAX,
                 cfg.period_multiplier,
                 chain,
             )
         })
         .collect::<Vec<_>>();
 
+    let mut update_stats = update_stat_templates(&updates[0]);
+    let mut samples_done = 0usize;
+    let mut self_consistent_period = cfg.initial_self_consistent_period;
     let mut stats = SimulationStats::default();
     while stats.steps_done < params.max_steps {
         for _ in 0..params.steps_per_cycle {
@@ -64,23 +70,34 @@ pub fn run_batched(
                 group_size,
                 &mut chains,
                 &mut updates,
+                &mut update_stats,
             );
             stats.steps_done += 1;
         }
         for (measurement, chain) in measurements.iter_mut().zip(&chains) {
             measurement.measure(chain);
         }
+        samples_done += 1;
+        maybe_reweight_uniformly(
+            cfg,
+            samples_done,
+            &chains,
+            &mut measurements,
+            &mut self_consistent_period,
+        );
         stats.cycles_done += 1;
     }
 
-    let measurement = measurements
-        .into_iter()
-        .map(PolaronMeasurement::finish)
+    let measurement = measurements_into_group_batches(measurements, cfg.n_batches, n_chains)
         .reduce(Merge::merge)
         .expect("n_chains > 0");
     stats.steps_done *= n_chains as u64;
     stats.cycles_done *= n_chains as u64;
-    Ok(BatchedRunOutput { stats, measurement })
+    Ok(BatchedRunOutput {
+        stats,
+        measurement,
+        update_stats,
+    })
 }
 
 fn build_flat_diagram(cfg: &RunConfig) -> FlatDiagram {
@@ -102,6 +119,7 @@ fn step_groups(
     group_size: usize,
     chains: &mut [FlatDiagram],
     updates: &mut [rmc_core::mc::WeightedUpdateSet<FlatPolaronUpdate>],
+    counters: &mut [UpdateStatEntry],
 ) {
     for (group_id, (chain_group, update_group)) in chains
         .chunks_mut(group_size)
@@ -112,7 +130,16 @@ fn step_groups(
         for (offset, (chain, updates)) in chain_group.iter_mut().zip(update_group).enumerate() {
             let chain_id = (group_id * group_size + offset) as u64;
             let mut rng = PhiloxRng::new(seed, chain_id, step);
-            step_selected(chain, updates, update_index, &mut rng);
+            let outcome = step_selected(chain, updates, update_index, &mut rng);
+            let counter = &mut counters[outcome.update_index];
+            counter.proposed += 1;
+            counter.impossible += u64::from(outcome.impossible);
+            counter.accepted += u64::from(outcome.accepted);
+            counter.acc_ratio = if counter.proposed == 0 {
+                0.0
+            } else {
+                counter.accepted as f64 / counter.proposed as f64
+            };
         }
     }
 }
@@ -147,6 +174,68 @@ fn step_selected<R: Rng + ?Sized>(
     }
 }
 
+fn update_stat_templates(
+    updates: &rmc_core::mc::WeightedUpdateSet<FlatPolaronUpdate>,
+) -> Vec<UpdateStatEntry> {
+    updates
+        .entries()
+        .iter()
+        .map(|entry| {
+            UpdateStatEntry::from_counts(entry.update().name().to_string(), entry.weight(), 0, 0, 0)
+        })
+        .collect()
+}
+
+fn maybe_reweight_uniformly(
+    cfg: &RunConfig,
+    samples_done: usize,
+    chains: &[FlatDiagram],
+    measurements: &mut [PolaronMeasurement],
+    self_consistent_period: &mut usize,
+) {
+    if samples_done <= *self_consistent_period {
+        return;
+    }
+    let next_period = ((*self_consistent_period as f64) * cfg.period_multiplier) as usize;
+    if samples_done + next_period > cfg.max_steps.div_ceil(cfg.steps_per_cycle.max(1)) as usize {
+        *self_consistent_period = usize::MAX;
+        return;
+    }
+
+    let Some(window) = measurements
+        .iter()
+        .map(|measurement| measurement.stats().clone())
+        .reduce(Merge::merge)
+    else {
+        return;
+    };
+    let estimate = window.jackknife_energy();
+    if !estimate.mean.is_finite() {
+        return;
+    }
+    let energy_estimate = physics::bare_dispersion(chains[0].momentum_out()) + estimate.mean;
+    *self_consistent_period = next_period;
+    for measurement in measurements {
+        measurement.reset_flat_energy_window(energy_estimate, next_period);
+    }
+}
+
+fn measurements_into_group_batches(
+    measurements: Vec<PolaronMeasurement>,
+    n_batches: usize,
+    n_chains: usize,
+) -> impl Iterator<Item = PolaronStats> {
+    measurements
+        .into_iter()
+        .enumerate()
+        .map(move |(chain, measurement)| {
+            let batch = (chain * n_batches / n_chains).min(n_batches - 1);
+            measurement
+                .finish()
+                .into_single_jackknife_batch(batch, n_batches)
+        })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -175,5 +264,13 @@ mod tests {
         assert_eq!(output.stats.cycles_done, 20);
         assert_eq!(output.measurement.sample_count, 20);
         assert_eq!(output.measurement.zeroth.total_count(), 20);
+        assert_eq!(
+            output
+                .update_stats
+                .iter()
+                .map(|row| row.proposed)
+                .sum::<u64>(),
+            100
+        );
     }
 }

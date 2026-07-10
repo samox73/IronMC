@@ -19,6 +19,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("{}", serde_json::to_string_pretty(&report)?);
             println!("steps/sec: {:.3}", report.steps_per_sec);
         }
+        Some("gpu") => {
+            #[cfg(feature = "gpu")]
+            {
+                let cfg = match args.next() {
+                    Some(path) => RunConfig::load_json(path)?,
+                    None if Path::new("input.json").exists() => RunConfig::load_json("input.json")?,
+                    None => RunConfig::default(),
+                };
+                let output = rmc_frohlich::gpu::run_gpu_from_config(&cfg)?;
+                let results_dir = args
+                    .next()
+                    .map_or_else(|| PathBuf::from("results-gpu"), PathBuf::from);
+                let manifest = write_results(&cfg, &output, &results_dir)?;
+                println!("{}", manifest.summary.text());
+                println!("results_dir: {}", results_dir.display());
+            }
+            #[cfg(not(feature = "gpu"))]
+            {
+                return Err("the 'gpu' subcommand requires building with --features gpu,gpu-cpu, gpu,gpu-hip, or gpu,gpu-cuda".into());
+            }
+        }
         Some(path) => {
             let cfg = RunConfig::load_json(path)?;
             let output = run_from_config_with_progress(&cfg, true)?;

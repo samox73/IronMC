@@ -5,6 +5,8 @@ pub mod config;
 pub mod diagram;
 pub mod flat;
 pub mod fourier;
+#[cfg(feature = "gpu")]
+pub mod gpu;
 pub mod measurement;
 pub mod physics;
 pub mod sanity;

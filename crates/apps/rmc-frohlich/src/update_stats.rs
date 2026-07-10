@@ -18,6 +18,16 @@ pub struct UpdateStatEntry {
 
 impl UpdateStatEntry {
     fn new(name: String, weight: f64, proposed: u64, impossible: u64, accepted: u64) -> Self {
+        Self::from_counts(name, weight, proposed, impossible, accepted)
+    }
+
+    pub(crate) fn from_counts(
+        name: String,
+        weight: f64,
+        proposed: u64,
+        impossible: u64,
+        accepted: u64,
+    ) -> Self {
         Self {
             name,
             weight,

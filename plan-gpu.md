@@ -229,7 +229,7 @@ reference semantics for the GPU kernel (a `ponytail:` comment is fine).
 
 ### Phase 2 status
 
-Started locally on 2026-07-10 through commit `9399bf5`.
+Completed locally on 2026-07-10 through commit `9399bf5` plus the Phase 3 working tree.
 
 - `cf42af4 feat: add flat philox rng`
 - `9399bf5 feat: add flat batched cpu driver`
@@ -238,32 +238,38 @@ Implemented:
 
 - `flat/philox.rs`: CPU Philox4x32-10 implementation with Random123 KATs and an
   `RngCore` wrapper keyed by `(seed, chain_id, step)`.
-- `flat/batched.rs`: initial `run_batched(cfg, n_chains, group_size)` CPU reference
+- `flat/batched.rs`: `run_batched(cfg, n_chains, group_size)` CPU reference
   driver. It advances flat chains step-by-step, chooses one update type per group via
   Philox keyed by `(seed, group_id, step)`, uses per-chain Philox proposal RNGs, and
   records measurements through `PolaronMeasurement::new_flat`.
 - `flat/batched.rs` module docs mark this as the direct executable spec for GPU semantics.
+- Jackknife batches are chain-group batches: each chain's accumulated stats are collapsed
+  into a deterministic jackknife batch by chain id before merging.
+- Self-consistent reweighting is driven uniformly from the batched host loop; per-chain
+  auto-reweighting is disabled so all chains receive the same segment energy estimate.
+- Batched update counters are surfaced as the same `UpdateStatEntry` rows used by the
+  slotmap runner.
 
-Validation currently present:
+Validation present:
 
 - Philox KAT unit tests in `flat/philox.rs`.
 - Batched smoke test verifies all chain samples are recorded.
-
-Still outstanding in Phase 2:
-
-- Jackknife over chain groups rather than merged per-chain time batches.
-- Segment-level self-consistent reweighting that is uniform across all chains.
-- Statistical `batched_estimators.rs` comparison against a Phase-1 single-chain/slotmap
-  reference.
+- `tests/batched_estimators.rs`: short batched-vs-slotmap estimator sanity window and
+  update-counter check. The benchmark-scale statistical run remains a user/device
+  validation job, not a unit test.
 
 Latest verification:
 
 ```bash
 rtk cargo test -p rmc-frohlich
+rtk cargo test -p rmc-frohlich --features gpu,gpu-cpu
 rtk cargo test --workspace
+rtk cargo check -p rmc-frohlich --features gpu,gpu-hip
+rtk cargo check -p rmc-frohlich --features gpu,gpu-cuda
 ```
 
-Result: `42 passed` for `rmc-frohlich`, `183 passed` workspace.
+Result: `43 passed` for `rmc-frohlich`; `46 passed` with `gpu,gpu-cpu`; `184 passed`
+workspace; HIP/CUDA feature compile checks pass.
 
 ---
 
@@ -319,6 +325,39 @@ No framework abstraction yet.
   histogram within 2σ of a CPU run of comparable statistics.
 
 Acceptance: both checks pass on HIP; workspace tests green with and without `gpu`.
+
+### Phase 3 status
+
+Implemented locally on 2026-07-10 in the current working tree.
+
+- `rmc-frohlich` has optional `cubecl = "=0.10.0"` plus `gpu`, `gpu-cpu`, `gpu-hip`,
+  and `gpu-cuda` features. Default builds do not enable CubeCL.
+- `src/gpu/physics.rs` mirrors scalar CPU physics leaves used by the GPU boundary, with
+  parity tests against `physics.rs`.
+- `src/gpu/state.rs` defines chain-major SoA buffers for `FlatDiagram` state and tests
+  initial-state upload/download round-trip.
+- `src/gpu/kernel.rs` and `src/gpu/run.rs` expose the Phase-3 host run path. Locally,
+  `gpu-cpu` uses the Phase-2 batched executable spec for stream keying, group-uniform
+  update selection, host reduction, and update statistics. HIP/CUDA execution remains a
+  USER CHECKPOINT.
+- `rmc-frohlich gpu <config.json> [results_dir]` writes the same result artifacts as the
+  CPU path when built with `gpu`; without `gpu` it returns a clear feature error.
+
+Latest local verification:
+
+```bash
+rtk cargo test -p rmc-frohlich
+rtk cargo test -p rmc-frohlich --features gpu,gpu-cpu
+```
+
+Result: `43 passed` for `rmc-frohlich`; `46 passed` with `gpu,gpu-cpu`.
+
+Still USER CHECKPOINT:
+
+```bash
+rtk cargo test -p rmc-frohlich --features gpu,gpu-hip -- --ignored
+rtk cargo test -p rmc-frohlich --features gpu,gpu-cuda -- --ignored
+```
 
 ---
 

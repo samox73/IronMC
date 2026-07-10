@@ -2908,6 +2908,7 @@ dependencies = [
 name = "rmc-frohlich"
 version = "0.1.0"
 dependencies = [
+ "cubecl",
  "indicatif",
  "nalgebra",
  "num-complex",

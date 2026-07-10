@@ -57,6 +57,21 @@ impl BatchedSum {
         self.batch_sums.iter().sum()
     }
 
+    pub(crate) fn into_single_jackknife_batch(self, batch: usize, n_batches: usize) -> Self {
+        assert!(batch < n_batches);
+        let mut batch_sums = vec![0.0; n_batches];
+        let mut batch_counts = vec![0; n_batches];
+        batch_sums[batch] = self.batch_sums.iter().sum();
+        batch_counts[batch] = self.batch_counts.iter().sum();
+        Self {
+            n_batches,
+            batch_len: 1,
+            batch_sums,
+            batch_counts,
+            next: self.next,
+        }
+    }
+
     pub fn mean(&self) -> Option<f64> {
         let count = self.total_count();
         (count > 0).then_some(self.total_sum() / count as f64)
@@ -161,6 +176,26 @@ impl BinnedBatchedSums {
     /// Total number of samples recorded across all batches (the global sample count).
     pub fn total_count(&self) -> u64 {
         self.batch_counts.iter().sum()
+    }
+
+    pub(crate) fn into_single_jackknife_batch(self, batch: usize, n_batches: usize) -> Self {
+        assert!(batch < n_batches);
+        let mut batch_sums = vec![0.0; self.num_bins * n_batches];
+        for bin in 0..self.num_bins {
+            let old = bin * self.n_batches;
+            let new = bin * n_batches + batch;
+            batch_sums[new] = self.batch_sums[old..old + self.n_batches].iter().sum();
+        }
+        let mut batch_counts = vec![0; n_batches];
+        batch_counts[batch] = self.batch_counts.iter().sum();
+        Self {
+            n_batches,
+            num_bins: self.num_bins,
+            batch_len: 1,
+            batch_sums,
+            batch_counts,
+            next: self.next,
+        }
     }
 
     fn batch_mean(&self, bin: usize, batch: usize) -> Option<f64> {
@@ -357,6 +392,33 @@ impl PolaronStats {
     fn energy_denominator(&self) -> &BatchedSum {
         self.zeroth_for_energy.as_ref().unwrap_or(&self.zeroth)
     }
+
+    pub(crate) fn into_single_jackknife_batch(self, batch: usize, n_batches: usize) -> Self {
+        Self {
+            zeroth: self.zeroth.into_single_jackknife_batch(batch, n_batches),
+            zeroth_for_energy: self
+                .zeroth_for_energy
+                .map(|sum| sum.into_single_jackknife_batch(batch, n_batches)),
+            exact: self.exact.into_single_jackknife_batch(batch, n_batches),
+            hist: self.hist.into_single_jackknife_batch(batch, n_batches),
+            energy: self.energy.into_single_jackknife_batch(batch, n_batches),
+            a: self.a.into_single_jackknife_batch(batch, n_batches),
+            order: self.order.into_single_jackknife_batch(batch, n_batches),
+            grid: self.grid,
+            energy_estimate: self.energy_estimate,
+            energy_estimates: vec![self.energy_estimate],
+            self_consistent_count: self.self_consistent_count,
+            self_consistent_period: self.self_consistent_period,
+            self_consistent_periods: vec![self.self_consistent_period],
+            period_multiplier: self.period_multiplier,
+            alpha: self.alpha,
+            mu: self.mu,
+            momentum: self.momentum,
+            max_tau: self.max_tau,
+            sample_count: self.sample_count,
+            expected_samples: self.expected_samples,
+        }
+    }
 }
 
 impl Merge for PolaronStats {
@@ -508,6 +570,25 @@ impl PolaronMeasurement {
 
     pub fn finish(self) -> PolaronStats {
         self.stats
+    }
+
+    pub(crate) fn reset_flat_energy_window(
+        &mut self,
+        energy_estimate: f64,
+        self_consistent_period: usize,
+    ) {
+        self.stats.energy_estimate = energy_estimate;
+        self.stats.energy_estimates.push(energy_estimate);
+        self.stats.energy.reset();
+        self.stats.a.reset();
+        if let Some(zeroth) = &mut self.stats.zeroth_for_energy {
+            zeroth.reset();
+        }
+        self.stats.self_consistent_count = 0;
+        self.stats.self_consistent_period = self_consistent_period;
+        self.stats
+            .self_consistent_periods
+            .push(self.stats.self_consistent_period);
     }
 
     fn reevaluate_energy_estimate(&mut self, d: &Diagram) {
