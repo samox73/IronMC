@@ -8,7 +8,7 @@
 
 > _because iron rusts_
 
-IronMC is the Rust port of the `simplemc` Monte-Carlo framework.
+IronMC started as the Rust port of the `simplemc` Monte-Carlo framework.
 
 ## Overview
 
@@ -17,7 +17,7 @@ IronMC is a small engine layer for reproducible Monte Carlo simulations: state-g
 The framework crates live directly under `crates/`:
 
 | Crate | Role |
-|---|---|
+| --- | --- |
 | `rmc-core` | engine: `State`/`Update`/`Measurement` traits, update sets, Metropolis kernel, `Runner`, seeding, `Merge` |
 | `rmc-stats` | mergeable statistical accumulators (sufficient statistics that reduce across chains) |
 | `rmc-grids` | one- and multi-dimensional grids for sampling, binning, and interpolation |
