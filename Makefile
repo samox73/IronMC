@@ -1,36 +1,28 @@
-# Rust Froehlich-polaron DiagMC (rmc-frohlich)
+# IronMC framework + example apps.
 #
-#   make run                 run the release build against crates/apps/rmc-frohlich/input.json
+#   make run        run the Fröhlich-polaron example against crates/apps/rmc-frohlich/input.json
 #
-# Performance targets (all use release-tuned + target-cpu=native, pinned to core 0):
-#   make test-perf-frohlich  end-to-end polaron sim in runs/test-perf-froehlich/alpha-5/
-#   make test-perf-minimal   framework (bare) + physics (full) step-rate measurement
-#   make perf                run both perf tests in sequence
-#
-# Criterion micro-benchmarks (rmc-core hot path):
-#   make bench               run benchmarks, no baseline
-#   make bench-before        run benchmarks and save results as the "before" baseline
-#   make bench-after         run benchmarks and compare against the "before" baseline
+# Benchmarks (cargo bench-compare; run them yourself, see AGENTS.md):
+#   make bench           all three below
+#   make bench-core      criterion hot-path micro-benchmarks (rmc-core)
+#   make bench-minimal   rmc-minimal step rate (bare framework, then full physics)
+#   make bench-frohlich  rmc-frohlich end-to-end step rate
 
-SHELL := bash
+# Recipes are nushell. Make expands $(VAR) before nu sees the line, so any $
+# meant for nushell (variables, $"...") must be written $$ to survive make.
+# .ONESHELL runs each recipe as one nu script, so `let` bindings persist across
+# lines; --no-config-file skips loading the user's env.nu/config.nu.
+SHELL := nu
+.SHELLFLAGS := --no-config-file -c
+.ONESHELL:
 
-CRATE              := rmc-frohlich
-PERF_DIR           := runs/test-perf-froehlich/alpha-5
-TUNED_BIN          := $(CURDIR)/target/release-tuned/$(CRATE)
-
-MINIMAL_CRATE      := rmc-minimal
-MINIMAL_TUNED_BIN  := $(CURDIR)/target/release-tuned/$(MINIMAL_CRATE)
-MINIMAL_STEPS      ?= 100000000
-MINIMAL_WARMUP     ?= 1000000
-
-# Flags shared by all tuned builds and benchmarks.
-TUNED_FLAGS        := RUSTFLAGS="-C target-cpu=native"
+CRATE := rmc-frohlich
 
 .DEFAULT_GOAL := run
+
 .PHONY: run bench bench-core bench-minimal bench-frohlich
 
-# Default: run the release build using the crate's committed input.json.
-# Results are written to ./results (the binary's default output directory).
+# Release build against the example's committed input.json; results go to ./results.
 run:
 	cargo run --release -p $(CRATE) -- crates/apps/$(CRATE)/input.json
 
@@ -38,14 +30,14 @@ bench: bench-core bench-minimal bench-frohlich
 
 bench-core:
 	@cargo bench-compare --bench hot_path --dedicate-core
-	@echo "------------------------------------------------------"
+	print "------------------------------------------------------"
 
 bench-minimal:
 	@cargo bench-compare --bin rmc-minimal --reps 10 --metric-regex 'steps/sec:\s*([\d.]+)' --progress-regex 'step (\d+)/(\d+)' --dedicate-core -- bare 3000000
-	@echo "------------------------------------------------------"
-	@cargo bench-compare --bin rmc-minimal --reps 10 --metric-regex 'steps/sec:\s*([\d.]+)' --progress-regex 'step (\d+)/(\d+)' --dedicate-core -- full 3000000
-	@echo "------------------------------------------------------"
+	print "------------------------------------------------------"
+	cargo bench-compare --bin rmc-minimal --reps 10 --metric-regex 'steps/sec:\s*([\d.]+)' --progress-regex 'step (\d+)/(\d+)' --dedicate-core -- full 3000000
+	print "------------------------------------------------------"
 
 bench-frohlich:
 	@cargo bench-compare --bin rmc-frohlich --reps 10 --metric-regex 'steps/sec:\s*([\d.]+)' --dedicate-core -- bench
-	@echo "------------------------------------------------------"
+	print "------------------------------------------------------"

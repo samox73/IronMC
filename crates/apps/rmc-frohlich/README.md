@@ -34,7 +34,10 @@ make run                                     # release build against this crate'
 cargo run -p rmc-frohlich -- def             # print the default RunConfig as JSON
 cargo run -p rmc-frohlich -- bench           # timed sampling loop only, no output files
 cargo run -p rmc-frohlich -- <config.json> [results_dir]   # full run with progress bar
+cargo run -p rmc-frohlich --features gpu-cpu -- gpu crates/apps/rmc-frohlich/input-gpu.json   # CubeCL backend (gpu-cuda / gpu-hip on a GPU)
 ```
+
+`input-cpu.json` and `input-gpu.json` are matched CPU/GPU configurations (same physics, chain counts sized for each backend); the GPU run writes to `results-gpu/` by default.
 
 Results (config, summary, raw stats, self-energy, FFT, checkpoint) are written as JSON to
 `results/` by default.
