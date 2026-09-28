@@ -2,6 +2,7 @@
 members = [
     # framework
     "crates/rmc-core",
+    "crates/rmc-diagmc",
     "crates/rmc-grids",
     "crates/rmc-io",
     "crates/rmc-numeric",
@@ -35,6 +36,7 @@ rand_core = "0.6"
 rand_xoshiro = "0.6"
 rayon = "1"
 rmc-core = { path = "crates/rmc-core" }
+rmc-diagmc = { path = "crates/rmc-diagmc" }
 rmc-grids = { path = "crates/rmc-grids" }
 rmc-io = { path = "crates/rmc-io" }
 rmc-numeric = { path = "crates/rmc-numeric" }

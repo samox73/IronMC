@@ -3068,6 +3068,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "rmc-diagmc"
+version = "0.1.0"
+dependencies = [
+ "indicatif",
+ "log",
+ "nalgebra",
+ "num-complex",
+ "rand 0.8.6",
+ "rand_distr",
+ "rand_xoshiro",
+ "rayon",
+ "rmc-core",
+ "rmc-numeric",
+ "rmc-stats",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "rmc-frohlich"
 version = "0.1.0"
 dependencies = [
