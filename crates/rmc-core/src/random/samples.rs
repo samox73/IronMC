@@ -37,13 +37,14 @@ pub fn exponential_pdf(x: f64, lambda: f64, a: f64) -> f64 {
 pub fn exponential_sample_bounded(r: f64, lambda: f64, a: f64, b: f64) -> f64 {
     assert!(lambda != 0.0);
     assert!(b > a);
-    a - (1.0 - r * (1.0 - (-(lambda * (b - a))).exp())).ln() / lambda
+    // exp_m1/ln_1p keep full precision when lambda*(b-a) is small.
+    a - (r * (-(lambda * (b - a))).exp_m1()).ln_1p() / lambda
 }
 
 pub fn exponential_pdf_bounded(x: f64, lambda: f64, a: f64, b: f64) -> f64 {
     assert!(lambda != 0.0);
     assert!(b > a);
-    lambda / (1.0 - (-(lambda * (b - a))).exp()) * (-(lambda * (x - a))).exp()
+    lambda / -(-(lambda * (b - a))).exp_m1() * (-(lambda * (x - a))).exp()
 }
 
 pub fn safe_exponential_sample(r: f64, lambda: f64, a: f64, b: f64) -> f64 {
@@ -64,6 +65,30 @@ pub fn safe_exponential_pdf(x: f64, lambda: f64, a: f64, b: f64) -> f64 {
     } else {
         uniform_pdf(a, b)
     }
+}
+
+/// Uniform index in `0..len` from a single uniform draw `r ∈ [0, 1)`.
+///
+/// GPU-portable replacement for [`uniform_index`]: exactly one uniform is consumed, so CPU and
+/// device streams stay word-aligned. The floor map carries a relative bias of order `len / 2^53`,
+/// negligible against MC statistics for any realistic vertex count.
+///
+/// # Panics
+/// Panics if `len == 0`.
+pub fn uniform_index_from_u01(r: f64, len: usize) -> usize {
+    assert!(len > 0, "uniform_index_from_u01 requires len > 0");
+    ((r * len as f64) as usize).min(len - 1)
+}
+
+/// Normal sample from two uniform draws `r1, r2 ∈ [0, 1)` via Box-Muller,
+/// `mean + sigma * sqrt(-2 ln(1 - r1)) * cos(2π r2)`.
+///
+/// GPU-portable replacement for `rand_distr::Normal` (ziggurat draws a data-dependent number of
+/// words); this consumes exactly two uniforms. `ln_1p(-r1)` keeps the log argument strictly
+/// positive for every representable `r1 < 1`.
+pub fn normal_from_uniforms(r1: f64, r2: f64, mean: f64, sigma: f64) -> f64 {
+    let radius = (-2.0 * (-r1).ln_1p()).sqrt();
+    mean + sigma * radius * (2.0 * PI * r2).cos()
 }
 
 pub fn normal_pdf(x: f64, mu: f64, sigma: f64) -> f64 {
