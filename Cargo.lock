@@ -3091,12 +3091,13 @@ name = "rmc-frohlich"
 version = "0.1.0"
 dependencies = [
  "cubecl",
+ "env_logger",
  "indicatif",
+ "log",
  "nalgebra",
  "num-complex",
  "proptest",
  "rand 0.8.6",
- "rand_distr",
  "rmc-core",
  "rmc-grids",
  "rmc-io",
