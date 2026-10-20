@@ -116,9 +116,7 @@ pub fn slurm_deadline(margin_secs: f64) -> Result<Option<Instant>> {
         return Ok(None);
     };
     let end: u64 = raw.parse().map_err(|_| {
-        RmcError::InvalidArgument(format!(
-            "SLURM_JOB_END_TIME is not epoch seconds: {raw:?}"
-        ))
+        RmcError::InvalidArgument(format!("SLURM_JOB_END_TIME is not epoch seconds: {raw:?}"))
     })?;
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)

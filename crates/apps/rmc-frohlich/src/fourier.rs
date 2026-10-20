@@ -90,13 +90,15 @@ pub fn analyze_self_energy(
     let s_prime_spline = CubicSplineInterpolation::natural(coarse_grid, s_prime_t.clone())?;
     let s_prime_t_dense = dense_taus
         .iter()
-        .map(|&tau| {
-            if tau <= max_time {
-                s_prime_spline.evaluate(tau).unwrap_or(0.0)
-            } else {
-                0.0
-            }
-        })
+        .map(
+            |&tau| {
+                if tau <= max_time {
+                    s_prime_spline.evaluate(tau).unwrap_or(0.0)
+                } else {
+                    0.0
+                }
+            },
+        )
         .collect::<Vec<_>>();
     let s1_t_dense = initialize_s1_t(cfg, &dense_taus);
     let s_t_dense = s_prime_t_dense

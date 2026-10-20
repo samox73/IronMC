@@ -51,7 +51,10 @@ fn find_first_divergent_step() {
                         ));
                     }
                     if !close(g.q[slot][k], c.q[slot][k]) {
-                        bad.push(format!("q[{slot}][{k}] {} vs {}", g.q[slot][k], c.q[slot][k]));
+                        bad.push(format!(
+                            "q[{slot}][{k}] {} vs {}",
+                            g.q[slot][k], c.q[slot][k]
+                        ));
                     }
                 }
             }
@@ -78,9 +81,7 @@ fn find_first_divergent_step() {
                 let invert = |tau_p: f64| {
                     (-(lambda * (tau_p - a))).exp_m1() / (-(lambda * (b - a))).exp_m1()
                 };
-                let word = |w: u32| {
-                    keyed_draw(cfg.seed, chain as u64, step, w / 4)[w as usize % 4]
-                };
+                let word = |w: u32| keyed_draw(cfg.seed, chain as u64, step, w / 4)[w as usize % 4];
                 let u01_lohi = |w0: u32, w1: u32| {
                     let bits = u64::from(word(w0)) | (u64::from(word(w1)) << 32);
                     (bits >> 11) as f64 * (1.0 / 9_007_199_254_740_992.0)

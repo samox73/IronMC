@@ -304,11 +304,8 @@ impl FlatDiagram {
         let new1 = self.splice_after(left, tau1, self.p_out[left as usize], q)?;
         self.phonons_above[new1 as usize] = phonons1;
 
-        let right_left = if before_right == NULL {
-            self.tail
-        } else {
-            self.prev[before_right as usize]
-        };
+        let right_left =
+            if before_right == NULL { self.tail } else { self.prev[before_right as usize] };
         let mut phonons2 = self.phonons_above[right_left as usize];
         if self.is_outgoing(right_left) {
             phonons2 += 1;
@@ -336,11 +333,8 @@ impl FlatDiagram {
     pub fn remove_arc(&mut self, a: u32, b: u32) {
         assert_eq!(self.link[a as usize], b);
         assert_eq!(self.link[b as usize], a);
-        let (left, right) = if self.tau[a as usize] < self.tau[b as usize] {
-            (a, b)
-        } else {
-            (b, a)
-        };
+        let (left, right) =
+            if self.tau[a as usize] < self.tau[b as usize] { (a, b) } else { (b, a) };
         let q = self.q[left as usize];
         let mut slot = self.next[left as usize];
         while slot != right {

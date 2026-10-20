@@ -100,11 +100,7 @@ impl ChangeInternalTau {
         let prev = d.prev[vertex as usize];
         let next = d.next[vertex as usize];
         let tau_previous = d.tau[prev as usize];
-        let tau_next = if next == NULL {
-            d.max_tau
-        } else {
-            d.tau[next as usize]
-        };
+        let tau_next = if next == NULL { d.max_tau } else { d.tau[next as usize] };
         let lambda = physics::change_internal_tau_lambda(
             d.p_out[prev as usize],
             d.p_out[vertex as usize],
@@ -190,11 +186,7 @@ impl AddPhonon {
         }
 
         let (p_mean, vertex2) = d.get_p_mean_between(self.tau1, self.tau2, vertex1);
-        let prev2 = if vertex2 == NULL {
-            d.tail
-        } else {
-            d.prev[vertex2 as usize]
-        };
+        let prev2 = if vertex2 == NULL { d.tail } else { d.prev[vertex2 as usize] };
         let prev_tau = d.tau[prev2 as usize];
         if self.tau2 - prev_tau < physics::DELTA_TAU_LIMIT
             || (vertex2 != NULL && d.tau[vertex2 as usize] - self.tau2 < physics::DELTA_TAU_LIMIT)
@@ -541,4 +533,3 @@ fn random_arc<R: Rng + ?Sized>(d: &FlatDiagram, rng: &mut R) -> (u32, u32) {
         (vertex1, vertex2)
     }
 }
-

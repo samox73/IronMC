@@ -657,16 +657,9 @@ impl Measurement<Diagram> for PolaronMeasurement {
 
         let is_zeroth = d.order == 0;
         let t0 = self.grid.bin_center(index).expect("bin center must exist");
-        let exact_value = if is_zeroth {
-            0.0
-        } else {
-            d.exact_estimator(t0)
-        };
-        let exp_energy = if is_zeroth {
-            0.0
-        } else {
-            ((self.stats.energy_estimate - d.mu) * d.tau()).exp()
-        };
+        let exact_value = if is_zeroth { 0.0 } else { d.exact_estimator(t0) };
+        let exp_energy =
+            if is_zeroth { 0.0 } else { ((self.stats.energy_estimate - d.mu) * d.tau()).exp() };
 
         self.stats.zeroth.push(if is_zeroth { 1.0 } else { 0.0 });
         if let Some(zeroth) = &mut self.stats.zeroth_for_energy {

@@ -35,11 +35,7 @@ fn loop_branch_kernel(input: &Array<u32>, output: &mut Array<u32>, iterations: u
         let mut acc = input[ABSOLUTE_POS];
         let mut i = 0;
         while i < iterations + (ABSOLUTE_POS as u32 % 3) {
-            acc = if (i + ABSOLUTE_POS as u32) % 2 == 0 {
-                acc + 3
-            } else {
-                acc + 1
-            };
+            acc = if (i + ABSOLUTE_POS as u32) % 2 == 0 { acc + 3 } else { acc + 1 };
             i += 1;
         }
         output[ABSOLUTE_POS] = acc;

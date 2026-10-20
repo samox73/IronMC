@@ -33,8 +33,7 @@ pub fn run_gpu_from_config(cfg: &RunConfig) -> AppResult<RunOutput> {
     let start = std::time::Instant::now();
     #[cfg(any(feature = "gpu-cpu", feature = "gpu-hip", feature = "gpu-cuda"))]
     let output = {
-        let client =
-            <SelectedRuntime as cubecl::prelude::Runtime>::client(&Default::default());
+        let client = <SelectedRuntime as cubecl::prelude::Runtime>::client(&Default::default());
         run_device::<SelectedRuntime>(cfg, client)?
     };
     #[cfg(not(any(feature = "gpu-cpu", feature = "gpu-hip", feature = "gpu-cuda")))]

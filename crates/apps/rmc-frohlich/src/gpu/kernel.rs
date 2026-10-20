@@ -305,11 +305,7 @@ fn mc_kernel(
         let id_hi = 0u32;
 
         for cycle in 0..n_cycles {
-            let steps = if cycle + 1 == n_cycles {
-                last_cycle_steps
-            } else {
-                steps_per_cycle
-            };
+            let steps = if cycle + 1 == n_cycles { last_cycle_steps } else { steps_per_cycle };
             for s in 0..steps {
                 let step = step0
                     + u64::cast_from(cycle) * u64::cast_from(steps_per_cycle)
@@ -386,11 +382,7 @@ fn mc_kernel(
                         let pv = prev[base + v] as usize;
                         let nx = next[base + v];
                         let tau_previous = tau[base + pv];
-                        let tau_next = if nx == NULL {
-                            max_tau
-                        } else {
-                            tau[base + nx as usize]
-                        };
+                        let tau_next = if nx == NULL { max_tau } else { tau[base + nx as usize] };
                         let lk = link[base + v];
                         let incoming = lk != NULL && tau[base + lk as usize] < tau[base + v];
                         let lambda = change_internal_tau_lambda(
@@ -504,11 +496,7 @@ fn mc_kernel(
                                     pmz *= inv;
                                 }
                                 let vb = end;
-                                let prev2 = if vb == NULLS {
-                                    tl
-                                } else {
-                                    prev[base + vb] as usize
-                                };
+                                let prev2 = if vb == NULLS { tl } else { prev[base + vb] as usize };
                                 let prev_tau = tau[base + prev2];
                                 let far_ok =
                                     vb == NULLS || tau[base + vb] - tau2 >= DELTA_TAU_LIMIT;
@@ -628,7 +616,8 @@ fn mc_kernel(
                                     + tail_ext)
                                     .exp()
                                 / (1.0
-                                    - (-(phonon_lambda(qx, qy, qz) * (max_tau - tau[base + left])))
+                                    - (-(phonon_lambda(qx, qy, qz)
+                                        * (max_tau - tau[base + left])))
                                         .exp());
                         }
                     }
@@ -811,7 +800,8 @@ fn mc_kernel(
                     if ord > 0 {
                         let r0 = u01(seed_lo, seed_hi, id_lo, id_hi, step_lo, step_hi, k);
                         k += 2;
-                        let mut va = storage[base + uniform_index(r0, n_vertices) as usize] as usize;
+                        let mut va =
+                            storage[base + uniform_index(r0, n_vertices) as usize] as usize;
                         if next[base + va] == NULL {
                             va = prev[base + va] as usize;
                         }
@@ -840,8 +830,7 @@ fn mc_kernel(
                                 - c2 * q[3 * (base + vb) + 2];
                             let special = out_a
                                 && in_b
-                                && (phonons_above[base + va] == 1
-                                    || phonons_above[base + vb] == 1);
+                                && (phonons_above[base + va] == 1 || phonons_above[base + vb] == 1);
                             if !special {
                                 v1 = va;
                                 v2 = vb;
@@ -1310,8 +1299,9 @@ impl<R: Runtime> DeviceState<R> {
         let read_u32 = |h: &cubecl::server::Handle| {
             u32::from_bytes(&self.client.read_one_unchecked(h.clone())).to_vec()
         };
-        let unflat3 =
-            |v: Vec<f64>| -> Vec<[f64; 3]> { v.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect() };
+        let unflat3 = |v: Vec<f64>| -> Vec<[f64; 3]> {
+            v.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect()
+        };
         crate::gpu::state::GpuStateBuffers {
             chains: self.chains as usize,
             capacity: self.capacity as usize,

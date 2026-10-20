@@ -25,15 +25,29 @@ impl Update<f64> for Shift {
 /// Everything one chain needs: initial state, kernel, and measurement. Called once per chain.
 fn build_chain(
     _chain: ChainId,
-) -> (f64, MetropolisKernel<SingleUpdateSet<Shift>>, BinnedScalar<impl Fn(&f64) -> f64>) {
-    let kernel = MetropolisKernel::new(SingleUpdateSet::new(Shift { width: 2.5, proposed: 0.0 }));
+) -> (
+    f64,
+    MetropolisKernel<SingleUpdateSet<Shift>>,
+    BinnedScalar<impl Fn(&f64) -> f64>,
+) {
+    let kernel = MetropolisKernel::new(SingleUpdateSet::new(Shift {
+        width: 2.5,
+        proposed: 0.0,
+    }));
     let x_squared = BinnedScalar::new(1_000, |x: &f64| x * x).expect("block size > 0");
     (0.0, kernel, x_squared)
 }
 
 fn main() -> rmc::Result<()> {
-    let params = SimulationParams { max_steps: 1_000_000, steps_per_cycle: 10, cycles_per_check: 0 };
-    let warmup = SimulationParams { max_steps: 10_000, ..params };
+    let params = SimulationParams {
+        max_steps: 1_000_000,
+        steps_per_cycle: 10,
+        cycles_per_check: 0,
+    };
+    let warmup = SimulationParams {
+        max_steps: 10_000,
+        ..params
+    };
 
     let report = Runner::new(SeedSource::new(42), build_chain)
         .chains(8)

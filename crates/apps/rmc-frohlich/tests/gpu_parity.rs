@@ -49,7 +49,10 @@ fn assert_chain_matches(chain: usize, gpu: &FlatDiagram, cpu: &FlatDiagram) {
     assert_eq!(gpu.prev, cpu.prev, "chain {chain} prev");
     assert_eq!(gpu.next, cpu.next, "chain {chain} next");
     assert_eq!(gpu.storage, cpu.storage, "chain {chain} storage");
-    assert_eq!(gpu.storage_idx, cpu.storage_idx, "chain {chain} storage_idx");
+    assert_eq!(
+        gpu.storage_idx, cpu.storage_idx,
+        "chain {chain} storage_idx"
+    );
     assert_eq!(
         gpu.phonons_above, cpu.phonons_above,
         "chain {chain} phonons_above"

@@ -652,11 +652,7 @@ impl Accumulator<f64> for ScalarAutocorrelation {
 
     fn accumulate(&mut self, sample: f64) {
         let available_lags = self.max_lag.min(self.history.len());
-        let history_head = if self.max_lag > 0 {
-            self.active_history_head()
-        } else {
-            0
-        };
+        let history_head = if self.max_lag > 0 { self.active_history_head() } else { 0 };
         for lag in 1..=available_lags {
             let previous = self.history[(history_head + self.max_lag - lag) % self.max_lag];
             let idx = lag - 1;

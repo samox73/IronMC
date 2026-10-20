@@ -164,13 +164,17 @@ impl<U> WeightedUpdateSet<U> {
                 "at least one update must be registered".to_string(),
             ));
         }
-        if let Some(weight) = self.entries.iter().find_map(|entry| {
-            if entry.weight < 0.0 {
-                Some(entry.weight)
-            } else {
-                None
-            }
-        }) {
+        if let Some(weight) =
+            self.entries.iter().find_map(
+                |entry| {
+                    if entry.weight < 0.0 {
+                        Some(entry.weight)
+                    } else {
+                        None
+                    }
+                },
+            )
+        {
             return Err(RmcError::InvalidArgument(format!(
                 "update weights must be >= 0 (got {weight})"
             )));

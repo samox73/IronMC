@@ -106,11 +106,7 @@ impl ChangeInternalTau {
         let prev = d.prev(vertex);
         let next = d.next(vertex);
         let tau_previous = d.v(prev).tau;
-        let tau_next = if next.is_null() {
-            d.max_tau
-        } else {
-            d.v(next).tau
-        };
+        let tau_next = if next.is_null() { d.max_tau } else { d.v(next).tau };
         let lambda = physics::change_internal_tau_lambda(
             vec3(&d.v(prev).p_out),
             vec3(&d.v(vertex).p_out),
@@ -158,11 +154,8 @@ impl RescaleDiagram {
             let delta = d.v(next).tau - d.v(k).tau;
             min_delta = min_delta.min(delta);
             let delta_s_i = delta / d.tau();
-            let phonon_count = if d.is_incoming(k) {
-                d.v(k).phonons_above
-            } else {
-                d.v(k).phonons_above + 1
-            };
+            let phonon_count =
+                if d.is_incoming(k) { d.v(k).phonons_above } else { d.v(k).phonons_above + 1 };
             energy += physics::rescale_energy_term(delta_s_i, vec3(&d.v(k).p_out), phonon_count);
             k = next;
         }

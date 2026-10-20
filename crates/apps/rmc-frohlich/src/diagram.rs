@@ -303,11 +303,7 @@ impl Diagram {
         }
         let new1 = self.splice_after(left, v1);
 
-        let right_left = if before_right.is_null() {
-            self.tail
-        } else {
-            self.prev(before_right)
-        };
+        let right_left = if before_right.is_null() { self.tail } else { self.prev(before_right) };
         let mut v2 = Vertex::new(tau2, self.v(right_left).p_out, q);
         v2.phonons_above = self.v(right_left).phonons_above;
         if self.is_outgoing(right_left) {
@@ -335,11 +331,7 @@ impl Diagram {
     pub fn remove_arc(&mut self, a: VKey, b: VKey) {
         assert_eq!(self.v(a).link, b);
         assert_eq!(self.v(b).link, a);
-        let (left, right) = if self.v(a).tau < self.v(b).tau {
-            (a, b)
-        } else {
-            (b, a)
-        };
+        let (left, right) = if self.v(a).tau < self.v(b).tau { (a, b) } else { (b, a) };
         let q = self.v(left).q;
         let mut k = self.next(left);
         while k != right {

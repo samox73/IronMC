@@ -142,7 +142,9 @@ fn hunt_first_corrupt_chain() {
             }
             Ok(upd) => {
                 if let Err(msg) = check_invariants(&d) {
-                    println!("chain {chain_id} INVARIANT VIOLATION after step {s} (update {upd}): {msg}");
+                    println!(
+                        "chain {chain_id} INVARIANT VIOLATION after step {s} (update {upd}): {msg}"
+                    );
                     println!(
                         "state before step:\n{}",
                         serde_json::to_string(&prev_state).unwrap()

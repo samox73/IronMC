@@ -35,7 +35,10 @@ fn config(chains: u64, max_steps: u64) -> DiagConfig {
 fn offset_split_runs_merge_bit_identically() {
     let model: Arc<dyn Model> = Arc::new(FrohlichModel::new(1.0));
     let full = run_leg(model.clone(), config(4, 4000), 0, None).unwrap();
-    assert!(full.report.mean_order.mean > 0.05, "walk never left order 0");
+    assert!(
+        full.report.mean_order.mean > 0.05,
+        "walk never left order 0"
+    );
 
     let rank0 = run_leg(model.clone(), config(2, 4000), 0, None).unwrap();
     let rank1 = run_leg(model.clone(), config(2, 4000), 2, None).unwrap();
@@ -91,8 +94,16 @@ fn resumed_legs_match_uninterrupted_run() {
             "{what}: {a} vs {b}"
         );
     };
-    close(merged.e0_thermo.mean, full.report.e0_thermo.mean, "e0_thermo");
-    close(merged.mean_order.mean, full.report.mean_order.mean, "mean_order");
+    close(
+        merged.e0_thermo.mean,
+        full.report.e0_thermo.mean,
+        "e0_thermo",
+    );
+    close(
+        merged.mean_order.mean,
+        full.report.mean_order.mean,
+        "mean_order",
+    );
     close(merged.sign.mean, full.report.sign.mean, "sign");
 
     // Guards: a resume whose chain count differs from the config fails loudly,
