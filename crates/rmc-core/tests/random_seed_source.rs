@@ -1,4 +1,4 @@
-use rand_core::RngCore;
+use rand_core::Rng;
 use rmc_core::random::{ChainId, SeedSource};
 
 #[test]

@@ -1,6 +1,6 @@
 #![cfg(feature = "serde")]
 
-use rand_core::RngCore;
+use rand_core::Rng;
 use rmc_core::mc::{
     MetropolisKernel, SimulationCtx, SimulationParams, SimulationStats, SingleUpdateSet,
     StepOutcome, Update, UpdateSet, UpdateStats, WeightedUpdate, WeightedUpdateSet,

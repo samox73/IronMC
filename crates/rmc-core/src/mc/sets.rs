@@ -1,5 +1,5 @@
-use rand::distributions::{Distribution, WeightedIndex};
-use rand::Rng;
+use rand::distr::{weighted::WeightedIndex, Distribution};
+use rand::{Rng, RngExt};
 
 use crate::{Result, RmcError};
 
@@ -265,7 +265,7 @@ where
 }
 
 // Single state-generic stepping helper shared by all static update sets. For acceptance, a
-// probability `>= 1.0` short-circuits *without* drawing a uniform; otherwise one `rng.gen::<f64>()`
+// probability `>= 1.0` short-circuits *without* drawing a uniform; otherwise one `rng.random::<f64>()`
 // is consumed. RNG consumption on the accept path therefore depends on the proposed probability —
 // relevant when reasoning about stream alignment across runs.
 fn step_update<State, R, U>(
@@ -287,7 +287,7 @@ where
         stats.nimps += 1;
         update.reject(state);
         (false, true)
-    } else if probability >= 1.0 || rng.r#gen::<f64>() < probability {
+    } else if probability >= 1.0 || rng.random::<f64>() < probability {
         stats.naccs += 1;
         update.accept(state);
         (true, false)

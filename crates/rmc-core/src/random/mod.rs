@@ -7,7 +7,7 @@
 mod samples;
 mod seed_source;
 
-pub use rand::Rng;
+pub use rand::{Rng, RngExt};
 pub use samples::{
     cauchy_pdf, cauchy_sample, exclusive_uniform_int_pdf, exponential_pdf, exponential_pdf_bounded,
     exponential_sample, exponential_sample_bounded, normal_from_uniforms, normal_pdf,

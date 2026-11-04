@@ -11,8 +11,7 @@ default = []
 serde = [
     "dep:serde",
     "num-complex/serde",
-    "rand_core/serde1",
-    "rand_xoshiro/serde1",
+    "rand_xoshiro/serde",
 ]
 
 [dependencies]

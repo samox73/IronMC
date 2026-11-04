@@ -7,7 +7,7 @@
 #![cfg(any(feature = "gpu-cpu", feature = "gpu-hip", feature = "gpu-cuda"))]
 
 use cubecl::prelude::Runtime;
-use rand::Rng;
+use rand::{Rng, RngExt};
 use rmc_frohlich::config::RunConfig;
 use rmc_frohlich::flat::philox::{keyed_draw, PhiloxRng};
 use rmc_frohlich::flat::FlatDiagram;
@@ -26,7 +26,7 @@ fn rand_f64_conversion_matches_word_stream() {
         let hi = word(2 * draw + 1);
         let bits = u64::from(lo) | (u64::from(hi) << 32);
         let expected = (bits >> 11) as f64 * (1.0 / 9_007_199_254_740_992.0);
-        let actual: f64 = rng.r#gen();
+        let actual: f64 = rng.random();
         assert_eq!(actual, expected, "draw {draw}");
     }
 }

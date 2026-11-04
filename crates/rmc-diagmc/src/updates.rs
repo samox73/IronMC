@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use nalgebra::Vector3;
 use num_complex::Complex64;
-use rand::{Error, Rng, RngCore};
+use rand::rand_core::Infallible;
+use rand::{Rng, RngExt, TryRng};
 use rmc_core::dispatch_update;
 use rmc_core::mc::{Update, WeightedUpdate, WeightedUpdateSet};
 use rmc_core::random::{exponential_pdf_bounded, exponential_sample_bounded};
@@ -65,7 +66,7 @@ impl Update<Diagram> for AddPhonon {
             return -1.0;
         }
 
-        let tau1 = rng.r#gen::<f64>() * diagram.tau();
+        let tau1 = rng.random::<f64>() * diagram.tau();
         let segment1 = weight::segment_at(diagram, tau1);
         if tau1 - diagram.v(segment1).tau < DELTA_TAU_LIMIT
             || diagram.v(segment1 + 1).tau - tau1 < DELTA_TAU_LIMIT
@@ -74,7 +75,7 @@ impl Update<Diagram> for AddPhonon {
         }
         let p = diagram.v(segment1).p_out;
         let lambda = decay_rate(self.model.as_ref(), p, q, branch);
-        let tau2 = exponential_sample_bounded(rng.r#gen(), lambda, tau1, diagram.tau());
+        let tau2 = exponential_sample_bounded(rng.random(), lambda, tau1, diagram.tau());
         if tau2 - tau1 < DELTA_TAU_LIMIT {
             return -1.0;
         }
@@ -140,7 +141,7 @@ impl Update<Diagram> for RemovePhonon {
             return -1.0;
         }
         let (left, right) = diagram
-            .nth_arc(rng.gen_range(0..diagram.arc_count()))
+            .nth_arc(rng.random_range(0..diagram.arc_count()))
             .expect("selected arc must exist");
         let vertex = diagram.v(left);
         let q_pdf = self.model.propose_phonon_pdf(vertex.q, vertex.branch);
@@ -192,7 +193,7 @@ impl Update<Diagram> for ChangeTau {
         if lower_tau >= diagram.max_tau {
             return -1.0;
         }
-        let tau = lower_tau + rng.r#gen::<f64>() * (diagram.max_tau - lower_tau);
+        let tau = lower_tau + rng.random::<f64>() * (diagram.max_tau - lower_tau);
         if tau - lower_tau < DELTA_TAU_LIMIT {
             return -1.0;
         }
@@ -232,10 +233,10 @@ impl Update<Diagram> for ChangeInternalTau {
         if diagram.order == 0 {
             return -1.0;
         }
-        let key = rng.gen_range(1..diagram.tail);
+        let key = rng.random_range(1..diagram.tail);
         let lower = diagram.v(key - 1).tau;
         let upper = diagram.v(key + 1).tau;
-        let tau = lower + rng.r#gen::<f64>() * (upper - lower);
+        let tau = lower + rng.random::<f64>() * (upper - lower);
         if tau - lower < DELTA_TAU_LIMIT || upper - tau < DELTA_TAU_LIMIT {
             return -1.0;
         }
@@ -267,21 +268,20 @@ pub fn time_proposal_pdf(tau_ext: f64, tau1: f64, tau2: f64, lambda: f64) -> f64
 
 struct RngAdapter<'a, R: ?Sized>(&'a mut R);
 
-impl<R: RngCore + ?Sized> RngCore for RngAdapter<'_, R> {
-    fn next_u32(&mut self) -> u32 {
-        self.0.next_u32()
+impl<R: Rng + ?Sized> TryRng for RngAdapter<'_, R> {
+    type Error = Infallible;
+
+    fn try_next_u32(&mut self) -> std::result::Result<u32, Infallible> {
+        Ok(self.0.next_u32())
     }
 
-    fn next_u64(&mut self) -> u64 {
-        self.0.next_u64()
+    fn try_next_u64(&mut self) -> std::result::Result<u64, Infallible> {
+        Ok(self.0.next_u64())
     }
 
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> std::result::Result<(), Infallible> {
         self.0.fill_bytes(dest);
-    }
-
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> std::result::Result<(), Error> {
-        self.0.try_fill_bytes(dest)
+        Ok(())
     }
 }
 

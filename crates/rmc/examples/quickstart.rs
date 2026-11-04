@@ -2,7 +2,7 @@
 //! π(x) ∝ exp(-x²/2), on 8 independent chains, with ⟨x²⟩ = 1 and a jackknife error bar.
 
 use rmc::mc::{MetropolisKernel, Runner, SimulationParams, SingleUpdateSet, Update, UpdateSet};
-use rmc::random::{ChainId, Rng, SeedSource};
+use rmc::random::{ChainId, Rng, RngExt, SeedSource};
 use rmc::stats::BinnedScalar;
 
 /// Uniform shift x → x + width·(2u − 1): symmetric, so the Metropolis acceptance is π(x')/π(x).
@@ -13,7 +13,7 @@ struct Shift {
 
 impl Update<f64> for Shift {
     fn attempt<R: Rng + ?Sized>(&mut self, x: &mut f64, rng: &mut R) -> f64 {
-        self.proposed = *x + self.width * (2.0 * rng.r#gen::<f64>() - 1.0);
+        self.proposed = *x + self.width * (2.0 * rng.random::<f64>() - 1.0);
         (-(self.proposed * self.proposed - *x * *x) / 2.0).exp()
     }
 

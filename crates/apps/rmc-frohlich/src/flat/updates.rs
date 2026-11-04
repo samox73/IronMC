@@ -1,6 +1,6 @@
 use std::f64::consts::PI;
 
-use rand::Rng;
+use rand::{Rng, RngExt};
 use rmc_core::dispatch_update;
 use rmc_core::mc::{WeightedUpdate, WeightedUpdateSet};
 use rmc_core::random::{
@@ -68,7 +68,7 @@ impl ChangeTau {
         let lambda = physics::dispersion(d.p_out[second_last as usize], d.mu)
             + if d.order != 0 { physics::OMEGA } else { 0.0 };
         self.tau_prime =
-            safe_exponential_sample(rng.r#gen(), lambda, d.tau[second_last as usize], d.max_tau);
+            safe_exponential_sample(rng.random(), lambda, d.tau[second_last as usize], d.max_tau);
         // List order and arc orientation rely on strictly increasing taus; a sample landing
         // (up to rounding) on the neighbor's tau would create a degenerate pair.
         if self.tau_prime - d.tau[second_last as usize] < physics::DELTA_TAU_LIMIT {
@@ -107,7 +107,7 @@ impl ChangeInternalTau {
             d.is_incoming(vertex),
         );
         self.vertex = vertex;
-        self.tau_prime = safe_exponential_sample(rng.r#gen(), lambda, tau_previous, tau_next);
+        self.tau_prime = safe_exponential_sample(rng.random(), lambda, tau_previous, tau_next);
         // Reject tau-degenerate proposals; strict ordering is load-bearing (see ChangeTau).
         if self.tau_prime.is_finite()
             && self.tau_prime - tau_previous >= physics::DELTA_TAU_LIMIT
@@ -171,7 +171,7 @@ impl AddPhonon {
 
         let next1 = d.next[vertex1 as usize];
         let delta_t = d.tau[next1 as usize] - d.tau[vertex1 as usize];
-        self.tau1 = d.tau[vertex1 as usize] + rng.r#gen::<f64>() * delta_t;
+        self.tau1 = d.tau[vertex1 as usize] + rng.random::<f64>() * delta_t;
         if self.tau1 - d.tau[vertex1 as usize] < physics::DELTA_TAU_LIMIT
             || d.tau[next1 as usize] - self.tau1 < physics::DELTA_TAU_LIMIT
         {
@@ -180,7 +180,7 @@ impl AddPhonon {
 
         self.q = draw_new_q(rng);
         let lambda = physics::phonon_lambda(self.q);
-        self.tau2 = exponential_sample_bounded(rng.r#gen(), lambda, self.tau1, d.max_tau);
+        self.tau2 = exponential_sample_bounded(rng.random(), lambda, self.tau1, d.max_tau);
         if self.tau2 - self.tau1 < physics::DELTA_TAU_LIMIT {
             return 0.0;
         }
@@ -331,7 +331,7 @@ impl RescaleDiagram {
         if !sigma.is_finite() || sigma < 0.0 {
             return 0.0;
         }
-        self.tau_prime = normal_from_uniforms(rng.r#gen(), rng.r#gen(), 2.0 * n / energy, sigma);
+        self.tau_prime = normal_from_uniforms(rng.random(), rng.random(), 2.0 * n / energy, sigma);
         if self.tau_prime < 0.0 || self.tau_prime > d.max_tau || !self.tau_prime.is_finite() {
             return 0.0;
         }
@@ -379,7 +379,7 @@ impl ChangeQModulus {
         if !sigma.is_finite() || sigma < 0.0 {
             return 0.0;
         }
-        self.q_prime = normal_from_uniforms(rng.r#gen(), rng.r#gen(), q0, sigma);
+        self.q_prime = normal_from_uniforms(rng.random(), rng.random(), q0, sigma);
         self.vertex1 = left;
         self.vertex2 = right;
         if self.q_prime < 0.0 || !self.q_prime.is_finite() {
@@ -419,8 +419,8 @@ impl ChangeQDirection {
             return 0.0;
         }
 
-        let phi = 2.0 * PI * rng.r#gen::<f64>();
-        let log_val = (-2.0 * rng.r#gen::<f64>() * a.sinh() + a.exp()).ln();
+        let phi = 2.0 * PI * rng.random::<f64>();
+        let log_val = (-2.0 * rng.random::<f64>() * a.sinh() + a.exp()).ln();
         let theta = (log_val / a).acos();
         let theta_base = physics::theta_from_cartesian(p_mean);
         let phi_base = physics::phi_from_cartesian(p_mean);
@@ -517,11 +517,11 @@ impl ChangeTopology {
 }
 
 fn draw_new_q<R: Rng + ?Sized>(rng: &mut R) -> Vec3 {
-    physics::draw_new_q_from_uniforms(rng.r#gen(), rng.r#gen(), rng.r#gen())
+    physics::draw_new_q_from_uniforms(rng.random(), rng.random(), rng.random())
 }
 
 fn random_vertex<R: Rng + ?Sized>(d: &FlatDiagram, rng: &mut R) -> u32 {
-    d.storage[uniform_index_from_u01(rng.r#gen(), d.storage.len())]
+    d.storage[uniform_index_from_u01(rng.random(), d.storage.len())]
 }
 
 fn random_arc<R: Rng + ?Sized>(d: &FlatDiagram, rng: &mut R) -> (u32, u32) {

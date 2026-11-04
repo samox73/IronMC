@@ -1,9 +1,10 @@
 use proptest::prelude::*;
-use rand_core::RngCore;
+use rand_core::Rng;
 use rmc_core::mc::{
     run_chain, Measurement, MetropolisKernel, NoopCallbacks, Runner, SimulationParams,
     SingleUpdateSet, Update,
 };
+use rmc_core::random::RngExt;
 use rmc_core::random::{ChainId, SeedSource};
 use rmc_core::Merge;
 
@@ -109,7 +110,7 @@ struct RandomParityUpdate;
 
 impl Update<u64> for RandomParityUpdate {
     fn attempt<R: rmc_core::random::Rng + ?Sized>(&mut self, state: &mut u64, rng: &mut R) -> f64 {
-        *state ^= rng.gen_range(0..=1);
+        *state ^= rng.random_range(0..=1);
         1.0
     }
 

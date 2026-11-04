@@ -1,7 +1,7 @@
 //! Debug harness for the 8192-chain hang: replay chains independently, find the first chain that
 //! panics, then replay it with per-step invariant checks to locate the first corruption.
 
-use rand::Rng;
+use rand::RngExt;
 use rmc_core::mc::{Update, WeightedUpdateSet};
 use rmc_frohlich::config::RunConfig;
 use rmc_frohlich::flat::philox::{keyed_draw, PhiloxRng};
@@ -50,7 +50,7 @@ fn step(
     let probability = entry.update_mut().attempt(d, &mut rng) * entry.ratio();
     if probability < 0.0 {
         entry.update_mut().reject(d);
-    } else if probability >= 1.0 || rng.r#gen::<f64>() < probability {
+    } else if probability >= 1.0 || rng.random::<f64>() < probability {
         entry.update_mut().accept(d);
     } else {
         entry.update_mut().reject(d);

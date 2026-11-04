@@ -2,7 +2,7 @@ use std::f64::consts::PI;
 
 use nalgebra::Vector3;
 use num_complex::Complex64;
-use rand::{Rng, RngCore};
+use rand::{Rng, RngExt};
 use serde::{Deserialize, Serialize};
 
 /// The only model-specific input required by the diagram engine.
@@ -11,7 +11,7 @@ pub trait Model: Send + Sync {
     fn electron_energy(&self, k: Vector3<f64>) -> f64;
     fn phonon_energy(&self, q: Vector3<f64>, nu: usize) -> f64;
     fn vertex(&self, k: Vector3<f64>, q: Vector3<f64>, nu: usize) -> Complex64;
-    fn propose_phonon(&self, rng: &mut dyn RngCore) -> (Vector3<f64>, usize, f64);
+    fn propose_phonon(&self, rng: &mut dyn Rng) -> (Vector3<f64>, usize, f64);
     fn propose_phonon_pdf(&self, q: Vector3<f64>, nu: usize) -> f64;
 
     /// Minus the logarithm of the per-arc momentum-measure normalization.
@@ -61,11 +61,11 @@ impl Model for FrohlichModel {
         Complex64::new(amplitude, 0.0)
     }
 
-    fn propose_phonon(&self, rng: &mut dyn RngCore) -> (Vector3<f64>, usize, f64) {
-        let cos_theta = 1.0 - 2.0 * rng.r#gen::<f64>();
+    fn propose_phonon(&self, rng: &mut dyn Rng) -> (Vector3<f64>, usize, f64) {
+        let cos_theta = 1.0 - 2.0 * rng.random::<f64>();
         let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
-        let phi = 2.0 * PI * rng.r#gen::<f64>();
-        let radius = Self::P0 / rng.r#gen::<f64>().max(f64::MIN_POSITIVE) - Self::P0;
+        let phi = 2.0 * PI * rng.random::<f64>();
+        let radius = Self::P0 / rng.random::<f64>().max(f64::MIN_POSITIVE) - Self::P0;
         let q = Vector3::new(
             radius * sin_theta * phi.cos(),
             radius * sin_theta * phi.sin(),

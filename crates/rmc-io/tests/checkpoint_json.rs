@@ -1,10 +1,9 @@
-use rand_core::RngCore;
 use rmc_core::{
     mc::{
         run_chain, Measurement, MetropolisKernel, SimulationParams, SingleUpdateSet, Update,
         UpdateSet,
     },
-    random::{ChainId, DefaultRng, Rng, SeedSource},
+    random::{ChainId, DefaultRng, Rng, RngExt, SeedSource},
 };
 use rmc_io::{
     from_binary_slice, from_json_str, load_binary, load_json, load_payload_binary,
@@ -144,7 +143,7 @@ struct RandomWalkUpdate;
 
 impl Update<i64> for RandomWalkUpdate {
     fn attempt<R: Rng + ?Sized>(&mut self, state: &mut i64, rng: &mut R) -> f64 {
-        if rng.gen_bool(0.5) {
+        if rng.random_bool(0.5) {
             *state += 1;
         } else {
             *state -= 1;

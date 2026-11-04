@@ -1,5 +1,5 @@
 use nalgebra::Vector3;
-use rand::Rng;
+use rand::{Rng, RngExt};
 use rmc_core::random::{exponential_sample_bounded, uniform_index_from_u01};
 use slotmap::Key;
 
@@ -51,7 +51,7 @@ impl AddPhonon {
 
         let next1 = d.next(vertex1);
         let delta_t = d.v(next1).tau - d.v(vertex1).tau;
-        self.tau1 = d.v(vertex1).tau + rng.r#gen::<f64>() * delta_t;
+        self.tau1 = d.v(vertex1).tau + rng.random::<f64>() * delta_t;
         if self.tau1 - d.v(vertex1).tau < Diagram::DELTA_TAU_LIMIT
             || d.v(next1).tau - self.tau1 < Diagram::DELTA_TAU_LIMIT
         {
@@ -60,7 +60,7 @@ impl AddPhonon {
 
         self.q = draw_new_q(rng);
         let lambda = physics::phonon_lambda(vec3(&self.q));
-        self.tau2 = exponential_sample_bounded(rng.r#gen(), lambda, self.tau1, d.max_tau);
+        self.tau2 = exponential_sample_bounded(rng.random(), lambda, self.tau1, d.max_tau);
         if self.tau2 - self.tau1 < Diagram::DELTA_TAU_LIMIT {
             return 0.0;
         }
@@ -176,9 +176,9 @@ impl RemovePhonon {
 }
 
 fn draw_new_q<R: Rng + ?Sized>(rng: &mut R) -> Vector3<f64> {
-    draw_new_q_from_uniforms(rng.r#gen(), rng.r#gen(), rng.r#gen())
+    draw_new_q_from_uniforms(rng.random(), rng.random(), rng.random())
 }
 
 fn random_vertex<R: Rng + ?Sized>(d: &Diagram, rng: &mut R) -> VKey {
-    d.storage[uniform_index_from_u01(rng.r#gen(), d.storage.len())]
+    d.storage[uniform_index_from_u01(rng.random(), d.storage.len())]
 }

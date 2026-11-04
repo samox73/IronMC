@@ -110,8 +110,8 @@ fn normal_from_uniforms_matches_moments_and_edges() {
     let (mut sum, mut sum_sq) = (0.0, 0.0);
     let mut rng = SeedSource::new(0x5150).rng_for(ChainId(0));
     for _ in 0..n {
-        use rand::Rng;
-        let z = normal_from_uniforms(rng.r#gen(), rng.r#gen(), -1.0, 2.0);
+        use rand::RngExt;
+        let z = normal_from_uniforms(rng.random(), rng.random(), -1.0, 2.0);
         sum += z;
         sum_sq += z * z;
     }

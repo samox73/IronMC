@@ -312,7 +312,7 @@ pub fn log_modulus_and_phase(diagram: &Diagram, model: &dyn Model) -> (f64, Comp
 mod tests {
     use super::*;
     use crate::model::{FrohlichModel, Model};
-    use rand::{Rng, RngCore, SeedableRng};
+    use rand::{Rng, RngExt, SeedableRng};
     use rand_xoshiro::Xoshiro256PlusPlus;
 
     struct ComplexModel;
@@ -334,7 +334,7 @@ mod tests {
             Complex64::from_polar(1.0 + 0.1 * q.norm_squared(), k[0] + q[1])
         }
 
-        fn propose_phonon(&self, _rng: &mut dyn RngCore) -> (Vector3<f64>, usize, f64) {
+        fn propose_phonon(&self, _rng: &mut dyn Rng) -> (Vector3<f64>, usize, f64) {
             (Vector3::new(0.2, 0.1, -0.1), 0, 1.0)
         }
 
@@ -371,26 +371,26 @@ mod tests {
         for model in [&frohlich as &dyn Model, &complex] {
             for _ in 0..100 {
                 let mut diagram = Diagram::new(-1.1, Vector3::new(0.1, -0.05, 0.02), 12.0, 0, 24);
-                for _ in 0..rng.gen_range(0..=20) {
-                    let mut tau = [rng.gen_range(0.01..5.99), rng.gen_range(0.01..5.99)];
+                for _ in 0..rng.random_range(0..=20) {
+                    let mut tau = [rng.random_range(0.01..5.99), rng.random_range(0.01..5.99)];
                     tau.sort_by(f64::total_cmp);
                     if tau[1] - tau[0] < 1.0e-12 {
                         continue;
                     }
                     let q = Vector3::new(
-                        rng.gen_range(-0.8..0.8),
-                        rng.gen_range(-0.8..0.8),
-                        rng.gen_range(-0.8..0.8),
+                        rng.random_range(-0.8..0.8),
+                        rng.random_range(-0.8..0.8),
+                        rng.random_range(-0.8..0.8),
                     );
                     diagram.insert_arc(tau[0], tau[1], q, 0);
                 }
 
-                let tau1 = rng.gen_range(0.01..5.0);
-                let tau2 = rng.gen_range(tau1 + 0.001..5.99);
+                let tau1 = rng.random_range(0.01..5.0);
+                let tau2 = rng.random_range(tau1 + 0.001..5.99);
                 let q = Vector3::new(
-                    rng.gen_range(-0.8..0.8),
-                    rng.gen_range(-0.8..0.8),
-                    rng.gen_range(-0.8..0.8),
+                    rng.random_range(-0.8..0.8),
+                    rng.random_range(-0.8..0.8),
+                    rng.random_range(-0.8..0.8),
                 );
                 let local = insert_arc_ratio(&diagram, model, tau1, tau2, q, 0);
                 let mut after = diagram.clone();
@@ -398,13 +398,14 @@ mod tests {
                 assert_matches_scratch(&diagram, &after, model, local);
 
                 if diagram.order > 0 {
-                    let (left, right) = diagram.nth_arc(rng.gen_range(0..diagram.order)).unwrap();
+                    let (left, right) =
+                        diagram.nth_arc(rng.random_range(0..diagram.order)).unwrap();
                     let local = remove_arc_ratio(&diagram, model, left, right);
                     let mut after = diagram.clone();
                     after.remove_arc(left, right);
                     assert_matches_scratch(&diagram, &after, model, local);
 
-                    let key = rng.gen_range(1..diagram.tail);
+                    let key = rng.random_range(1..diagram.tail);
                     let new_tau = diagram.v(key - 1).tau
                         + 0.37 * (diagram.v(key + 1).tau - diagram.v(key - 1).tau);
                     let local = shift_vertex_tau_ratio(&diagram, model, key, new_tau);

@@ -3,7 +3,7 @@
 //! ponytail: this is a direct executable spec, not a fast CPU engine; split SoA buffers out only
 //! when the GPU host path needs the same code.
 
-use rand::Rng;
+use rand::{Rng, RngExt};
 use rmc_core::mc::{Measurement, SimulationStats, StepOutcome, Update};
 use rmc_core::Merge;
 
@@ -162,7 +162,7 @@ fn step_selected<R: Rng + ?Sized>(
     let (accepted, impossible) = if probability < 0.0 {
         entry.update_mut().reject(chain);
         (false, true)
-    } else if probability >= 1.0 || rng.r#gen::<f64>() < probability {
+    } else if probability >= 1.0 || rng.random::<f64>() < probability {
         entry.update_mut().accept(chain);
         (true, false)
     } else {

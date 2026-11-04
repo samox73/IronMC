@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use nalgebra::Vector3;
 use num_complex::Complex64;
-use rand::{Rng, RngCore, SeedableRng};
+use rand::{Rng, RngExt, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
 use rmc_diagmc::weight::{self, WeightRatio};
 use rmc_diagmc::{run, DiagConfig, Diagram, FrohlichModel, Model};
@@ -26,7 +26,7 @@ impl Model for ComplexModel {
         Complex64::from_polar(1.0 + 0.1 * q.norm_squared(), k[0] + q[1])
     }
 
-    fn propose_phonon(&self, _rng: &mut dyn RngCore) -> (Vector3<f64>, usize, f64) {
+    fn propose_phonon(&self, _rng: &mut dyn Rng) -> (Vector3<f64>, usize, f64) {
         (Vector3::new(0.2, 0.1, -0.1), 0, 1.0)
     }
 
@@ -58,8 +58,8 @@ impl Model for HolsteinFlatModel {
         Complex64::new(self.gamma, 0.0)
     }
 
-    fn propose_phonon(&self, rng: &mut dyn RngCore) -> (Vector3<f64>, usize, f64) {
-        let index = rng.gen_range(0..self.n.pow(3));
+    fn propose_phonon(&self, rng: &mut dyn Rng) -> (Vector3<f64>, usize, f64) {
+        let index = rng.random_range(0..self.n.pow(3));
         let q = Vector3::new(
             (index / self.n.pow(2)) as f64 / self.n as f64,
             (index / self.n % self.n) as f64 / self.n as f64,
@@ -95,24 +95,29 @@ fn incremental_bookkeeping_matches_full_weight_after_random_moves() {
 
     for _ in 0..200 {
         let before = diagram.clone();
-        let ratio: WeightRatio = if (diagram.order == 0 || rng.gen_bool(0.6)) && diagram.order < 8 {
-            let mut times = [
-                rng.gen_range(0.01..diagram.tau()),
-                rng.gen_range(0.01..diagram.tau()),
-            ];
-            times.sort_by(f64::total_cmp);
-            if times[0] == times[1] {
-                continue;
-            }
-            let q = Vector3::new(rng.gen_range(-0.5..0.5), rng.gen_range(-0.5..0.5), 0.2);
-            diagram.insert_arc(times[0], times[1], q, 0);
-            weight::add_phonon_ratio(&before, &diagram, &model)
-        } else {
-            let arcs = diagram.arc_keys();
-            let (left, right) = arcs[rng.gen_range(0..arcs.len())];
-            diagram.remove_arc(left, right);
-            weight::remove_phonon_ratio(&before, &diagram, &model)
-        };
+        let ratio: WeightRatio =
+            if (diagram.order == 0 || rng.random_bool(0.6)) && diagram.order < 8 {
+                let mut times = [
+                    rng.random_range(0.01..diagram.tau()),
+                    rng.random_range(0.01..diagram.tau()),
+                ];
+                times.sort_by(f64::total_cmp);
+                if times[0] == times[1] {
+                    continue;
+                }
+                let q = Vector3::new(
+                    rng.random_range(-0.5..0.5),
+                    rng.random_range(-0.5..0.5),
+                    0.2,
+                );
+                diagram.insert_arc(times[0], times[1], q, 0);
+                weight::add_phonon_ratio(&before, &diagram, &model)
+            } else {
+                let arcs = diagram.arc_keys();
+                let (left, right) = arcs[rng.random_range(0..arcs.len())];
+                diagram.remove_arc(left, right);
+                weight::remove_phonon_ratio(&before, &diagram, &model)
+            };
         tracked_modulus *= ratio.modulus;
         tracked_phase *= ratio.phase;
         let exact_modulus = weight::weight_modulus(&diagram, &model);

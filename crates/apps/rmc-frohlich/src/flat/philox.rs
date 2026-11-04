@@ -1,4 +1,5 @@
-use rand::{Error, RngCore};
+use rand::rand_core::Infallible;
+use rand::{Rng, TryRng};
 
 const M0: u32 = 0xd251_1f53;
 const M1: u32 = 0xcd9e_8d57;
@@ -34,21 +35,23 @@ impl PhiloxRng {
     }
 }
 
-impl RngCore for PhiloxRng {
-    fn next_u32(&mut self) -> u32 {
+impl TryRng for PhiloxRng {
+    type Error = Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Infallible> {
         if self.next_word == 4 {
             self.refill();
         }
         let word = self.words[self.next_word];
         self.next_word += 1;
-        word
+        Ok(word)
     }
 
-    fn next_u64(&mut self) -> u64 {
-        u64::from(self.next_u32()) | (u64::from(self.next_u32()) << 32)
+    fn try_next_u64(&mut self) -> Result<u64, Infallible> {
+        Ok(u64::from(self.next_u32()) | (u64::from(self.next_u32()) << 32))
     }
 
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Infallible> {
         let mut chunks = dest.chunks_exact_mut(4);
         for chunk in &mut chunks {
             chunk.copy_from_slice(&self.next_u32().to_le_bytes());
@@ -58,10 +61,6 @@ impl RngCore for PhiloxRng {
             let word = self.next_u32().to_le_bytes();
             remainder.copy_from_slice(&word[..remainder.len()]);
         }
-    }
-
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
-        self.fill_bytes(dest);
         Ok(())
     }
 }

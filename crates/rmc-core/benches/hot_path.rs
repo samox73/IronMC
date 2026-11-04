@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
-use rand::Rng;
+use rand::{Rng, RngExt};
 use rmc_core::dispatch_update;
 use rmc_core::mc::{
     run_chain, Measurement, MetropolisKernel, NoopCallbacks, SimulationParams, SingleUpdateSet,
@@ -82,7 +82,7 @@ impl TunedUpdate {
     fn attempt<R: Rng + ?Sized>(&mut self, state: &mut u64, rng: &mut R) -> f64 {
         self.proposal = state
             .wrapping_add(self.delta)
-            .wrapping_add(rng.gen_range(0..8));
+            .wrapping_add(rng.random_range(0..8));
         if self.proposal % self.reject_every == 0 {
             0.15
         } else {

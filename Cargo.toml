@@ -29,11 +29,11 @@ indicatif = "0.17"
 log = "0.4"
 nalgebra = { version = "0.33", default-features = false, features = ["std"] }
 num-complex = "0.4"
-proptest = "1"
-rand = "0.8"
-rand_distr = "0.4"
-rand_core = "0.6"
-rand_xoshiro = "0.6"
+proptest = "1.12"
+rand = "0.10"
+rand_core = "0.10"
+rand_distr = "0.6"
+rand_xoshiro = "0.8"
 rayon = "1"
 rmc-core = { path = "crates/rmc-core" }
 rmc-diagmc = { path = "crates/rmc-diagmc" }
@@ -41,11 +41,11 @@ rmc-grids = { path = "crates/rmc-grids" }
 rmc-io = { path = "crates/rmc-io" }
 rmc-numeric = { path = "crates/rmc-numeric" }
 rmc-stats = { path = "crates/rmc-stats" }
+rustfft = "6"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 slotmap = { version = "1", features = ["serde"] }
 thiserror = "1"
-rustfft = "6"
 
 # Fully-optimized build for benchmarking (the "tuned Rust" tier vs C++ -O3).
 # Build with: RUSTFLAGS="-C target-cpu=native" cargo build --profile release-tuned -p rmc-frohlich
