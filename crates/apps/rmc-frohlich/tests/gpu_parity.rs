@@ -26,7 +26,7 @@ fn rand_f64_conversion_matches_word_stream() {
         let hi = word(2 * draw + 1);
         let bits = u64::from(lo) | (u64::from(hi) << 32);
         let expected = (bits >> 11) as f64 * (1.0 / 9_007_199_254_740_992.0);
-        let actual: f64 = rng.gen();
+        let actual: f64 = rng.r#gen();
         assert_eq!(actual, expected, "draw {draw}");
     }
 }

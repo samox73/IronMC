@@ -162,7 +162,7 @@ fn step_selected<R: Rng + ?Sized>(
     let (accepted, impossible) = if probability < 0.0 {
         entry.update_mut().reject(chain);
         (false, true)
-    } else if probability >= 1.0 || rng.gen::<f64>() < probability {
+    } else if probability >= 1.0 || rng.r#gen::<f64>() < probability {
         entry.update_mut().accept(chain);
         (true, false)
     } else {

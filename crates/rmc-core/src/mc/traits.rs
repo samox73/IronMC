@@ -35,7 +35,7 @@ macro_rules! dispatch_update {
     (
         $(#[$meta:meta])*
         $vis:vis enum $name:ident <$state:ty> {
-            $($variant:ident($update:ty) $(=> $label:expr)?),+ $(,)?
+            $($variant:ident($update:ty) $(=> $label:expr_2021)?),+ $(,)?
         }
         $(; $reject:ident)?
     ) => {
@@ -80,7 +80,7 @@ macro_rules! dispatch_update {
         }
     };
     (@reject [$state:ty] [$($variant:ident),+]) => {};
-    (@name $variant:ident $label:expr) => {
+    (@name $variant:ident $label:expr_2021) => {
         $label
     };
     (@name $variant:ident) => {

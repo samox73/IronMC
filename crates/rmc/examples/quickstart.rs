@@ -13,7 +13,7 @@ struct Shift {
 
 impl Update<f64> for Shift {
     fn attempt<R: Rng + ?Sized>(&mut self, x: &mut f64, rng: &mut R) -> f64 {
-        self.proposed = *x + self.width * (2.0 * rng.gen::<f64>() - 1.0);
+        self.proposed = *x + self.width * (2.0 * rng.r#gen::<f64>() - 1.0);
         (-(self.proposed * self.proposed - *x * *x) / 2.0).exp()
     }
 

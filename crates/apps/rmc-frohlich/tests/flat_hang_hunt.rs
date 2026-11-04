@@ -50,7 +50,7 @@ fn step(
     let probability = entry.update_mut().attempt(d, &mut rng) * entry.ratio();
     if probability < 0.0 {
         entry.update_mut().reject(d);
-    } else if probability >= 1.0 || rng.gen::<f64>() < probability {
+    } else if probability >= 1.0 || rng.r#gen::<f64>() < probability {
         entry.update_mut().accept(d);
     } else {
         entry.update_mut().reject(d);

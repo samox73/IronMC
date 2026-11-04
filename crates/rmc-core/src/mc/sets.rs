@@ -287,7 +287,7 @@ where
         stats.nimps += 1;
         update.reject(state);
         (false, true)
-    } else if probability >= 1.0 || rng.gen::<f64>() < probability {
+    } else if probability >= 1.0 || rng.r#gen::<f64>() < probability {
         stats.naccs += 1;
         update.accept(state);
         (true, false)

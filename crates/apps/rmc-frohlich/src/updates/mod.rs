@@ -72,7 +72,7 @@ impl ChangeTau {
         let lambda =
             d.dispersion(&d.v(second_last).p_out) + if d.order != 0 { physics::OMEGA } else { 0.0 };
         self.tau_prime =
-            safe_exponential_sample(rng.gen(), lambda, d.v(second_last).tau, d.max_tau);
+            safe_exponential_sample(rng.r#gen(), lambda, d.v(second_last).tau, d.max_tau);
         // List order and arc orientation rely on strictly increasing taus; a sample landing
         // (up to rounding) on the neighbor's tau would create a degenerate pair.
         if self.tau_prime - d.v(second_last).tau < physics::DELTA_TAU_LIMIT {
@@ -113,7 +113,7 @@ impl ChangeInternalTau {
             d.is_incoming(vertex),
         );
         self.vertex = vertex;
-        self.tau_prime = safe_exponential_sample(rng.gen(), lambda, tau_previous, tau_next);
+        self.tau_prime = safe_exponential_sample(rng.r#gen(), lambda, tau_previous, tau_next);
         // Reject tau-degenerate proposals; strict ordering is load-bearing (see ChangeTau).
         if self.tau_prime.is_finite()
             && self.tau_prime - tau_previous >= physics::DELTA_TAU_LIMIT
@@ -165,7 +165,7 @@ impl RescaleDiagram {
         if !sigma.is_finite() || sigma < 0.0 {
             return 0.0;
         }
-        self.tau_prime = normal_from_uniforms(rng.gen(), rng.gen(), 2.0 * n / energy, sigma);
+        self.tau_prime = normal_from_uniforms(rng.r#gen(), rng.r#gen(), 2.0 * n / energy, sigma);
         if self.tau_prime < 0.0 || self.tau_prime > d.max_tau || !self.tau_prime.is_finite() {
             return 0.0;
         }
@@ -214,7 +214,7 @@ impl ChangeQModulus {
         if !sigma.is_finite() || sigma < 0.0 {
             return 0.0;
         }
-        self.q_prime = normal_from_uniforms(rng.gen(), rng.gen(), q0, sigma);
+        self.q_prime = normal_from_uniforms(rng.r#gen(), rng.r#gen(), q0, sigma);
         self.vertex1 = left;
         self.vertex2 = right;
         if self.q_prime < 0.0 || !self.q_prime.is_finite() {
@@ -253,8 +253,8 @@ impl ChangeQDirection {
             return 0.0;
         }
 
-        let phi = 2.0 * PI * rng.gen::<f64>();
-        let log_val = (-2.0 * rng.gen::<f64>() * a.sinh() + a.exp()).ln();
+        let phi = 2.0 * PI * rng.r#gen::<f64>();
+        let log_val = (-2.0 * rng.r#gen::<f64>() * a.sinh() + a.exp()).ln();
         let theta = (log_val / a).acos();
         let theta_base = theta_from_cartesian(&p_mean);
         let phi_base = phi_from_cartesian(&p_mean);
@@ -350,7 +350,7 @@ impl ChangeTopology {
 }
 
 fn random_vertex<R: Rng + ?Sized>(d: &Diagram, rng: &mut R) -> VKey {
-    d.storage[uniform_index_from_u01(rng.gen(), d.storage.len())]
+    d.storage[uniform_index_from_u01(rng.r#gen(), d.storage.len())]
 }
 
 fn random_arc<R: Rng + ?Sized>(d: &Diagram, rng: &mut R) -> (VKey, VKey) {

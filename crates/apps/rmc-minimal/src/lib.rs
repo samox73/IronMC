@@ -78,7 +78,7 @@ impl UniformShift {
     }
 
     pub fn attempt<R: Rng + ?Sized>(&mut self, state: &MinimalState, rng: &mut R) -> f64 {
-        self.x_prime = state.x + (2.0 * rng.gen::<f64>() - 1.0) * self.a;
+        self.x_prime = state.x + (2.0 * rng.r#gen::<f64>() - 1.0) * self.a;
         MinimalState::weight_ratio(self.x_prime, state.x)
     }
 

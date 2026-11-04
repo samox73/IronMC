@@ -62,10 +62,10 @@ impl Model for FrohlichModel {
     }
 
     fn propose_phonon(&self, rng: &mut dyn RngCore) -> (Vector3<f64>, usize, f64) {
-        let cos_theta = 1.0 - 2.0 * rng.gen::<f64>();
+        let cos_theta = 1.0 - 2.0 * rng.r#gen::<f64>();
         let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
-        let phi = 2.0 * PI * rng.gen::<f64>();
-        let radius = Self::P0 / rng.gen::<f64>().max(f64::MIN_POSITIVE) - Self::P0;
+        let phi = 2.0 * PI * rng.r#gen::<f64>();
+        let radius = Self::P0 / rng.r#gen::<f64>().max(f64::MIN_POSITIVE) - Self::P0;
         let q = Vector3::new(
             radius * sin_theta * phi.cos(),
             radius * sin_theta * phi.sin(),

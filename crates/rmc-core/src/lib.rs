@@ -20,7 +20,7 @@ pub use scalar::{SampleType, Scalar};
 
 #[macro_export]
 macro_rules! time {
-      ($function:path; $($argument:expr),* $(,)?) => {{
+      ($function:path; $($argument:expr_2021),* $(,)?) => {{
           let start = ::std::time::Instant::now();
           let result = $function($($argument),*);
           log::debug!(
