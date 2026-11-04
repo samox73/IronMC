@@ -43,13 +43,20 @@ pub struct Report {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-struct Batch {
-    hist: Vec<Complex64>,
-    eloc_hist: Vec<Complex64>,
-    zeroth: u64,
-    phase_sum: Complex64,
-    order_sum: f64,
-    count: u64,
+pub struct Batch {
+    pub hist: Vec<Complex64>,
+    pub eloc_hist: Vec<Complex64>,
+    pub zeroth: u64,
+    pub phase_sum: Complex64,
+    pub order_sum: f64,
+    pub count: u64,
+}
+
+/// Batches are chain-major with exactly n_batches per chain
+impl MeasurementData {
+    pub fn batches(&self) -> &[Batch] {
+        &self.batches
+    }
 }
 
 impl Batch {
