@@ -1,8 +1,8 @@
+use rmc_core::Merge;
 use rmc_core::mc::{
     Measurement, MetropolisKernel, Runner, SimulationParams, SingleUpdateSet, Update,
 };
 use rmc_core::random::{ChainId, SeedSource};
-use rmc_core::Merge;
 use rmc_stats::{
     Accumulator, MeanAccumulator, ScalarMoments, VarianceAccumulator, WeightedScalarMoments,
 };

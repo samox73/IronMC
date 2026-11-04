@@ -108,11 +108,7 @@ impl VarianceAccumulator<f64> for ScalarMoments {
     }
 
     fn sample_variance(&self) -> Option<f64> {
-        if self.count > 1 {
-            Some(self.m2 / (self.count - 1) as f64)
-        } else {
-            None
-        }
+        if self.count > 1 { Some(self.m2 / (self.count - 1) as f64) } else { None }
     }
 }
 
@@ -381,20 +377,12 @@ impl ScalarCovariance {
 
     /// Unbiased sample variance of the first component, normalized by `n - 1`.
     pub fn sample_variance_x(&self) -> Option<f64> {
-        if self.count > 1 {
-            Some(self.m2_x / (self.count - 1) as f64)
-        } else {
-            None
-        }
+        if self.count > 1 { Some(self.m2_x / (self.count - 1) as f64) } else { None }
     }
 
     /// Unbiased sample variance of the second component, normalized by `n - 1`.
     pub fn sample_variance_y(&self) -> Option<f64> {
-        if self.count > 1 {
-            Some(self.m2_y / (self.count - 1) as f64)
-        } else {
-            None
-        }
+        if self.count > 1 { Some(self.m2_y / (self.count - 1) as f64) } else { None }
     }
 
     /// Population covariance, normalized by `n`.
@@ -404,11 +392,7 @@ impl ScalarCovariance {
 
     /// Unbiased sample covariance, normalized by `n - 1`.
     pub fn sample_covariance(&self) -> Option<f64> {
-        if self.count > 1 {
-            Some(self.c2 / (self.count - 1) as f64)
-        } else {
-            None
-        }
+        if self.count > 1 { Some(self.c2 / (self.count - 1) as f64) } else { None }
     }
 
     /// Pearson correlation coefficient.
@@ -572,11 +556,7 @@ impl ScalarAutocorrelation {
 
     /// Number of same-chain pairs available for `lag`.
     pub fn pair_count(&self, lag: usize) -> Option<u64> {
-        if lag == 0 {
-            Some(self.count)
-        } else {
-            self.pair_counts.get(lag - 1).copied()
-        }
+        if lag == 0 { Some(self.count) } else { self.pair_counts.get(lag - 1).copied() }
     }
 
     /// Population variance, equal to lag-zero autocovariance.

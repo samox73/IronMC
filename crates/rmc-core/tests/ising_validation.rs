@@ -1,9 +1,9 @@
-use rmc_core::mc::{
-    run_chain, Measurement, MetropolisKernel, NoopCallbacks, Runner, SimulationParams,
-    SingleUpdateSet, Update,
-};
-use rmc_core::random::{uniform_index, ChainId, SeedSource};
 use rmc_core::Merge;
+use rmc_core::mc::{
+    Measurement, MetropolisKernel, NoopCallbacks, Runner, SimulationParams, SingleUpdateSet,
+    Update, run_chain,
+};
+use rmc_core::random::{ChainId, SeedSource, uniform_index};
 
 #[derive(Clone, Debug)]
 struct Ising2x2 {
@@ -168,11 +168,7 @@ impl IsingLattice {
 }
 
 fn wrap_sub(value: usize, modulus: usize) -> usize {
-    if value == 0 {
-        modulus - 1
-    } else {
-        value - 1
-    }
+    if value == 0 { modulus - 1 } else { value - 1 }
 }
 
 #[derive(Clone, Debug)]
@@ -194,11 +190,7 @@ impl Update<IsingLattice> for MetropolisSpinFlip {
     fn attempt<R: rand::Rng + ?Sized>(&mut self, state: &mut IsingLattice, rng: &mut R) -> f64 {
         self.proposed_idx = uniform_index(rng, state.len());
         let delta_energy = state.delta_energy_for_flip(self.proposed_idx);
-        if delta_energy <= 0 {
-            1.0
-        } else {
-            (-self.beta * f64::from(delta_energy)).exp()
-        }
+        if delta_energy <= 0 { 1.0 } else { (-self.beta * f64::from(delta_energy)).exp() }
     }
 
     fn accept(&mut self, state: &mut IsingLattice) {

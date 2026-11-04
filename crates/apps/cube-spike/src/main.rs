@@ -8,10 +8,11 @@ fn run<R: cubecl::prelude::Runtime>(client: cubecl::prelude::ComputeClient<R>) {
     let dtau = [0.0, 0.1, 1.0, 12.5];
     let exp = cube_spike::cube::run_exp::<R>(client.clone(), 0.7, &dtau);
     let expected = cube_spike::exp_reference(0.7, &dtau);
-    assert!(exp
-        .iter()
-        .zip(expected)
-        .all(|(actual, expected)| (actual - expected).abs() <= expected.abs().max(1.0) * 1e-14));
+    assert!(
+        exp.iter()
+            .zip(expected)
+            .all(|(actual, expected)| (actual - expected).abs() <= expected.abs().max(1.0) * 1e-14)
+    );
 
     let trait_out = cube_spike::cube::run_trait::<R>(client.clone(), &dtau);
     assert_eq!(trait_out.len(), dtau.len());

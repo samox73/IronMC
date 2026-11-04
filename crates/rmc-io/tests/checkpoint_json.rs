@@ -1,15 +1,15 @@
 use rmc_core::{
     mc::{
-        run_chain, Measurement, MetropolisKernel, SimulationParams, SingleUpdateSet, Update,
-        UpdateSet,
+        Measurement, MetropolisKernel, SimulationParams, SingleUpdateSet, Update, UpdateSet,
+        run_chain,
     },
     random::{ChainId, DefaultRng, Rng, RngExt, SeedSource},
 };
 use rmc_io::{
-    from_binary_slice, from_json_str, load_binary, load_json, load_payload_binary,
-    load_payload_json, save_binary, save_binary_atomic, save_json, save_json_atomic,
-    save_payload_binary, save_payload_json, to_binary_vec, to_json_string, Checkpoint, IoError,
-    MapSink, CHECKPOINT_VERSION,
+    CHECKPOINT_VERSION, Checkpoint, IoError, MapSink, from_binary_slice, from_json_str,
+    load_binary, load_json, load_payload_binary, load_payload_json, save_binary,
+    save_binary_atomic, save_json, save_json_atomic, save_payload_binary, save_payload_json,
+    to_binary_vec, to_json_string,
 };
 use serde::{Deserialize, Serialize};
 

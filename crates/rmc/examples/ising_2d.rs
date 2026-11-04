@@ -26,9 +26,9 @@
 //! in the hot path. Each rayon worker owns a complete independent chain state.
 
 use rmc::mc::{
-    run_chain, MetropolisKernel, NoopCallbacks, Runner, SimulationParams, SingleUpdateSet, Update,
+    MetropolisKernel, NoopCallbacks, Runner, SimulationParams, SingleUpdateSet, Update, run_chain,
 };
-use rmc::random::{uniform_index, ChainId, Rng, SeedSource};
+use rmc::random::{ChainId, Rng, SeedSource, uniform_index};
 use rmc::stats::BinnedScalar;
 
 #[derive(Clone)]
@@ -79,11 +79,7 @@ impl IsingLattice {
 }
 
 fn wrap_sub(value: usize, modulus: usize) -> usize {
-    if value == 0 {
-        modulus - 1
-    } else {
-        value - 1
-    }
+    if value == 0 { modulus - 1 } else { value - 1 }
 }
 
 #[derive(Clone)]
@@ -105,11 +101,7 @@ impl Update<IsingLattice> for SpinFlipUpdate {
     fn attempt<R: Rng + ?Sized>(&mut self, state: &mut IsingLattice, rng: &mut R) -> f64 {
         self.proposed_idx = uniform_index(rng, state.len());
         let delta_energy = state.delta_energy_for_flip(self.proposed_idx);
-        if delta_energy <= 0 {
-            1.0
-        } else {
-            (-self.beta * f64::from(delta_energy)).exp()
-        }
+        if delta_energy <= 0 { 1.0 } else { (-self.beta * f64::from(delta_energy)).exp() }
     }
 
     fn accept(&mut self, state: &mut IsingLattice) {

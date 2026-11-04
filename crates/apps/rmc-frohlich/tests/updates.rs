@@ -1,10 +1,10 @@
 use nalgebra::Vector3;
 use rmc_core::mc::{Kernel, MetropolisKernel};
 use rmc_core::random::{ChainId, SeedSource};
+use rmc_frohlich::Diagram;
 use rmc_frohlich::sanity;
 use rmc_frohlich::updates::default_update_set;
 use rmc_frohlich::updates::phonon::{AddPhonon, RemovePhonon};
-use rmc_frohlich::Diagram;
 
 #[test]
 fn add_and_remove_updates_preserve_sanity() {

@@ -1,7 +1,7 @@
 use rmc_core::dispatch_update;
 use rmc_core::mc::{
-    run_chain, Measurement, MetropolisKernel, NoopCallbacks, Runner, SimulationParams,
-    SingleUpdateSet, Update, UpdateSet,
+    Measurement, MetropolisKernel, NoopCallbacks, Runner, SimulationParams, SingleUpdateSet,
+    Update, UpdateSet, run_chain,
 };
 use rmc_core::random::{ChainId, SeedSource};
 

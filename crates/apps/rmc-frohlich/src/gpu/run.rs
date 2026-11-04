@@ -1,14 +1,14 @@
 //! GPU run driver: resident chain state on device, segmented kernel launches, host-side
 //! measurement replay with the same uniform reweighting schedule as `flat::batched::run_batched`.
 
-use rmc_core::mc::SimulationStats;
 use rmc_core::Merge;
+use rmc_core::mc::SimulationStats;
 
 use crate::app::{AppResult, RunOutput};
 use crate::config::RunConfig;
 use crate::flat::batched::{
-    build_flat_diagram, maybe_reweight_uniformly, measurements_into_group_batches,
-    update_stat_templates, BatchedRunOutput,
+    BatchedRunOutput, build_flat_diagram, maybe_reweight_uniformly,
+    measurements_into_group_batches, update_stat_templates,
 };
 use crate::flat::updates::default_update_set;
 use crate::measurement::PolaronMeasurement;
@@ -54,7 +54,7 @@ pub fn run_device<R: cubecl::prelude::Runtime>(
     cfg: &RunConfig,
     client: cubecl::prelude::ComputeClient<R>,
 ) -> rmc_core::Result<BatchedRunOutput> {
-    use crate::gpu::kernel::{launch_segment, DeviceState, SegmentParams};
+    use crate::gpu::kernel::{DeviceState, SegmentParams, launch_segment};
     use crate::gpu::state::GpuStateBuffers;
 
     let n_chains = cfg.chains as usize;
@@ -159,7 +159,9 @@ pub fn run_device<R: cubecl::prelude::Runtime>(
         replay_secs += t.elapsed().as_secs_f64();
         cycle_start += n_cycles;
     }
-    log::info!("gpu: launches (incl. JIT + sample readback) {launch_secs:.3}s, host replay {replay_secs:.3}s");
+    log::info!(
+        "gpu: launches (incl. JIT + sample readback) {launch_secs:.3}s, host replay {replay_secs:.3}s"
+    );
 
     let t = std::time::Instant::now();
     let measurement = measurements_into_group_batches(measurements, cfg.n_batches, n_chains)

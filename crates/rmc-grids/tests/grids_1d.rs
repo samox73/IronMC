@@ -1,6 +1,6 @@
 use rmc_grids::{
-    index_subrange, integer_subrange, AxisGrid, CustomGrid, Grid1d, LinearGrid, PowerGrid,
-    SymmetricPowerGrid,
+    AxisGrid, CustomGrid, Grid1d, LinearGrid, PowerGrid, SymmetricPowerGrid, index_subrange,
+    integer_subrange,
 };
 
 fn assert_close(actual: f64, expected: f64) {

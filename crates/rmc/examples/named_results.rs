@@ -1,8 +1,8 @@
 //! Typed measurements composed as a tuple, then named with plain JSON.
 
 use rmc::mc::{
-    run_chain, Measurement, MetropolisKernel, NoopCallbacks, SimulationParams, SingleUpdateSet,
-    Update,
+    Measurement, MetropolisKernel, NoopCallbacks, SimulationParams, SingleUpdateSet, Update,
+    run_chain,
 };
 use rmc::random::{ChainId, Rng, SeedSource};
 

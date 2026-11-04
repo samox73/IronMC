@@ -1,9 +1,9 @@
-use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
+use criterion::{BatchSize, Criterion, black_box, criterion_group, criterion_main};
 use rand::{Rng, RngExt};
 use rmc_core::dispatch_update;
 use rmc_core::mc::{
-    run_chain, Measurement, MetropolisKernel, NoopCallbacks, SimulationParams, SingleUpdateSet,
-    Update, WeightedUpdate, WeightedUpdateSet,
+    Measurement, MetropolisKernel, NoopCallbacks, SimulationParams, SingleUpdateSet, Update,
+    WeightedUpdate, WeightedUpdateSet, run_chain,
 };
 use rmc_core::random::{ChainId, SeedSource};
 
@@ -83,11 +83,7 @@ impl TunedUpdate {
         self.proposal = state
             .wrapping_add(self.delta)
             .wrapping_add(rng.random_range(0..8));
-        if self.proposal % self.reject_every == 0 {
-            0.15
-        } else {
-            0.85
-        }
+        if self.proposal % self.reject_every == 0 { 0.15 } else { 0.85 }
     }
 
     fn accept(&mut self, state: &mut u64) {

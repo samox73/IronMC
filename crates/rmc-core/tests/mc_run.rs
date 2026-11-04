@@ -3,9 +3,9 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use rmc_core::mc::{
-    run_chain, Measurement, MetropolisKernel, NoopCallbacks, RunCallbacks, SimulationCtx,
-    SimulationParams, SingleUpdateSet, SteppingUpdateSet, Update, UpdateSet, WeightedUpdate,
-    WeightedUpdateSet, WithDeadline,
+    Measurement, MetropolisKernel, NoopCallbacks, RunCallbacks, SimulationCtx, SimulationParams,
+    SingleUpdateSet, SteppingUpdateSet, Update, UpdateSet, WeightedUpdate, WeightedUpdateSet,
+    WithDeadline, run_chain,
 };
 use rmc_core::random::{ChainId, SeedSource};
 
@@ -552,16 +552,20 @@ fn weighted_update_set_validates_weights() {
     assert!(WeightedUpdateSet::new(Vec::<WeightedUpdate<CountingUpdate>>::new()).is_err());
     assert!(WeightedUpdateSet::new(vec![WeightedUpdate::new(update(), 0.0)]).is_err());
     assert!(WeightedUpdateSet::new(vec![WeightedUpdate::new(update(), -1.0)]).is_err());
-    assert!(WeightedUpdateSet::new(vec![
-        WeightedUpdate::new(update(), 0.0),
-        WeightedUpdate::new(update(), 0.0),
-    ])
-    .is_err());
-    assert!(WeightedUpdateSet::new(vec![
-        WeightedUpdate::new(update(), -1.0),
-        WeightedUpdate::new(update(), 1.0),
-    ])
-    .is_err());
+    assert!(
+        WeightedUpdateSet::new(vec![
+            WeightedUpdate::new(update(), 0.0),
+            WeightedUpdate::new(update(), 0.0),
+        ])
+        .is_err()
+    );
+    assert!(
+        WeightedUpdateSet::new(vec![
+            WeightedUpdate::new(update(), -1.0),
+            WeightedUpdate::new(update(), 1.0),
+        ])
+        .is_err()
+    );
     assert!(WeightedUpdateSet::inverse_pair(update(), 0.0, update(), 1.0).is_err());
     assert!(WeightedUpdateSet::inverse_pair(update(), 0.0, update(), 0.0).is_err());
 }

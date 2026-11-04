@@ -6,14 +6,14 @@ use std::f64::consts::PI;
 
 use nalgebra::Vector3;
 use rand::{Rng, RngExt};
+use rmc_core::Result;
 use rmc_core::dispatch_update;
 use rmc_core::mc::{WeightedUpdate, WeightedUpdateSet};
 use rmc_core::random::{normal_from_uniforms, safe_exponential_sample, uniform_index_from_u01};
-use rmc_core::Result;
 use slotmap::Key;
 
 use crate::diagram::VKey;
-use crate::diagram::{phi_from_cartesian, theta_from_cartesian, vec3, Diagram};
+use crate::diagram::{Diagram, phi_from_cartesian, theta_from_cartesian, vec3};
 use crate::physics;
 use phonon::{AddPhonon, RemovePhonon};
 
@@ -176,11 +176,7 @@ impl RescaleDiagram {
         }
 
         let acceptance = physics::rescale_diagram_ratio(d.order, d.tau(), self.tau_prime, energy);
-        if acceptance.is_finite() {
-            acceptance
-        } else {
-            0.0
-        }
+        if acceptance.is_finite() { acceptance } else { 0.0 }
     }
 
     pub fn accept(&mut self, d: &mut Diagram) {
@@ -217,11 +213,7 @@ impl ChangeQModulus {
         self.q_prime = normal_from_uniforms(rng.random(), rng.random(), q0, sigma);
         self.vertex1 = left;
         self.vertex2 = right;
-        if self.q_prime < 0.0 || !self.q_prime.is_finite() {
-            0.0
-        } else {
-            1.0
-        }
+        if self.q_prime < 0.0 || !self.q_prime.is_finite() { 0.0 } else { 1.0 }
     }
 
     pub fn accept(&mut self, d: &mut Diagram) {
@@ -266,11 +258,7 @@ impl ChangeQDirection {
         self.q_prime = Vector3::new(rotated[0], rotated[1], rotated[2]);
         self.vertex1 = left;
         self.vertex2 = right;
-        if self.q_prime.iter().any(|x| x.is_nan()) {
-            0.0
-        } else {
-            1.0
-        }
+        if self.q_prime.iter().any(|x| x.is_nan()) { 0.0 } else { 1.0 }
     }
 
     pub fn accept(&mut self, d: &mut Diagram) {
@@ -322,11 +310,7 @@ impl ChangeTopology {
             c1,
             c2,
         );
-        if acceptance.is_finite() {
-            acceptance
-        } else {
-            0.0
-        }
+        if acceptance.is_finite() { acceptance } else { 0.0 }
     }
 
     pub fn accept(&mut self, d: &mut Diagram) {
@@ -356,9 +340,5 @@ fn random_vertex<R: Rng + ?Sized>(d: &Diagram, rng: &mut R) -> VKey {
 fn random_arc<R: Rng + ?Sized>(d: &Diagram, rng: &mut R) -> (VKey, VKey) {
     let vertex1 = random_vertex(d, rng);
     let vertex2 = d.v(vertex1).link;
-    if d.v(vertex2).tau < d.v(vertex1).tau {
-        (vertex2, vertex1)
-    } else {
-        (vertex1, vertex2)
-    }
+    if d.v(vertex2).tau < d.v(vertex1).tau { (vertex2, vertex1) } else { (vertex1, vertex2) }
 }

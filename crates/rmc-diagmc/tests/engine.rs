@@ -5,7 +5,7 @@ use num_complex::Complex64;
 use rand::{Rng, RngExt, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
 use rmc_diagmc::weight::{self, WeightRatio};
-use rmc_diagmc::{run, DiagConfig, Diagram, FrohlichModel, Model};
+use rmc_diagmc::{DiagConfig, Diagram, FrohlichModel, Model, run};
 
 struct ComplexModel;
 
@@ -69,11 +69,7 @@ impl Model for HolsteinFlatModel {
     }
 
     fn propose_phonon_pdf(&self, _q: Vector3<f64>, nu: usize) -> f64 {
-        if nu == 0 {
-            1.0 / self.n.pow(3) as f64
-        } else {
-            0.0
-        }
+        if nu == 0 { 1.0 / self.n.pow(3) as f64 } else { 0.0 }
     }
 
     fn log_momentum_measure(&self) -> f64 {

@@ -1,8 +1,8 @@
 use rand::{Rng, RngExt};
 use rand_distr::{Distribution, Normal};
+use rmc_core::Result;
 use rmc_core::dispatch_update;
 use rmc_core::mc::{WeightedUpdate, WeightedUpdateSet};
-use rmc_core::Result;
 use rmc_stats::BinnedScalar;
 
 pub const DEFAULT_BATCH_SIZE: usize = 1_000;

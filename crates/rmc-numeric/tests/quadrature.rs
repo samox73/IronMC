@@ -1,4 +1,4 @@
-use rmc_numeric::{integrate_simpson, integrate_trapezoid, AdaptiveSimpson, NumericError};
+use rmc_numeric::{AdaptiveSimpson, NumericError, integrate_simpson, integrate_trapezoid};
 
 fn assert_close(actual: f64, expected: f64, tolerance: f64) {
     assert!(

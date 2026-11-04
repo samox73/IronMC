@@ -5,8 +5,8 @@ use rmc_numeric::{
     AdaptiveSimpson, CubicSplineInterpolation, LinearInterpolation, LinearInterpolationMixed,
     LinearInterpolationNd, PolynomialInterpolation,
 };
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 fn round_trip<T>(value: &T) -> T
 where

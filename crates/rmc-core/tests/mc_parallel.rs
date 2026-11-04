@@ -1,5 +1,5 @@
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use rmc_core::mc::{
     Measurement, MetropolisKernel, Runner, SimulationParams, SingleUpdateSet, Update, UpdateSet,

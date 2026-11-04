@@ -1,6 +1,6 @@
 use rmc_grids::{
-    flat_index_row_major, nd_index_row_major, size_from_shape, AxisGrid, CustomGrid, Grid1d,
-    LinearGrid, NdGrid, PowerGrid,
+    AxisGrid, CustomGrid, Grid1d, LinearGrid, NdGrid, PowerGrid, flat_index_row_major,
+    nd_index_row_major, size_from_shape,
 };
 
 fn assert_close(actual: f64, expected: f64) {

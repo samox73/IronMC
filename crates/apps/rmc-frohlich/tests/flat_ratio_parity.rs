@@ -1,12 +1,12 @@
 use proptest::prelude::*;
 use rmc_core::mc::{Kernel, MetropolisKernel};
 use rmc_core::random::{ChainId, SeedSource};
-use rmc_frohlich::flat::updates as flat_updates;
+use rmc_frohlich::Diagram;
 use rmc_frohlich::flat::FlatDiagram;
+use rmc_frohlich::flat::updates as flat_updates;
 use rmc_frohlich::updates as slot_updates;
 use rmc_frohlich::updates::default_update_set;
 use rmc_frohlich::updates::phonon as slot_phonon;
-use rmc_frohlich::Diagram;
 
 fn diagram_after(seed: u64, steps: usize) -> Diagram {
     let mut diagram = Diagram::default();

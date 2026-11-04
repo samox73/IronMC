@@ -3,7 +3,7 @@ use rand::{Rng, RngExt};
 use rmc_core::random::{exponential_sample_bounded, uniform_index_from_u01};
 use slotmap::Key;
 
-use crate::diagram::{draw_new_q_from_uniforms, vec3, Diagram, VKey};
+use crate::diagram::{Diagram, VKey, draw_new_q_from_uniforms, vec3};
 use crate::physics;
 
 /// Inserts a new phonon arc (pair of linked vertices) at a random time interval.
@@ -18,11 +18,7 @@ pub struct AddPhonon {
 
 impl AddPhonon {
     pub fn attempt<R: Rng + ?Sized>(&mut self, d: &Diagram, rng: &mut R) -> f64 {
-        if d.order == 0 {
-            self.attempt_from_zero_fake(d, rng)
-        } else {
-            self.higher_order(d, rng)
-        }
+        if d.order == 0 { self.attempt_from_zero_fake(d, rng) } else { self.higher_order(d, rng) }
     }
 
     pub fn accept(&mut self, d: &mut Diagram) {

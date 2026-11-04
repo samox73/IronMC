@@ -3,7 +3,7 @@
 //! The first MVP slices provide checked linear interpolation on `rmc-grids` grids and basic
 //! one-dimensional quadrature for smooth finite intervals.
 
-use rmc_grids::{index_subrange, AxisGrid, Grid1d, NdGrid};
+use rmc_grids::{AxisGrid, Grid1d, NdGrid, index_subrange};
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, NumericError>;

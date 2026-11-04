@@ -5,15 +5,15 @@ use indicatif::{MultiProgress, ProgressBar};
 use nalgebra::Vector3;
 use rand::Rng;
 use rmc_core::mc::{
-    default_progress_style, IndicatifProgress, Kernel, MetropolisKernel, Runner, SimulationParams,
-    StepOutcome, WithDeadline,
+    IndicatifProgress, Kernel, MetropolisKernel, Runner, SimulationParams, StepOutcome,
+    WithDeadline, default_progress_style,
 };
 use rmc_core::random::{ChainId, DefaultRng, SeedSource};
 use rmc_core::{Result, RmcError};
 use serde::{Deserialize, Serialize};
 
 use crate::diagram::Diagram;
-use crate::measure::{summarize, DiagMeasurement, MeasurementData, Report};
+use crate::measure::{DiagMeasurement, MeasurementData, Report, summarize};
 use crate::model::Model;
 use crate::updates::{update_set, update_set_fixed_tau};
 use crate::weight;

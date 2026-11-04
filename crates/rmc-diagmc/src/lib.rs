@@ -8,7 +8,7 @@ pub mod updates;
 pub mod weight;
 
 pub use diagram::{Diagram, Vertex};
-pub use measure::{summarize, DiagMeasurement, Estimate, GreenFunction, MeasurementData, Report};
+pub use measure::{DiagMeasurement, Estimate, GreenFunction, MeasurementData, Report, summarize};
 pub use model::{FrohlichModel, Model};
-pub use run::{run, run_leg, DiagConfig, SlotmapLeg};
-pub use updates::{update_set, update_set_fixed_tau, DiagUpdate};
+pub use run::{DiagConfig, SlotmapLeg, run, run_leg};
+pub use updates::{DiagUpdate, update_set, update_set_fixed_tau};

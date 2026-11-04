@@ -1007,9 +1007,5 @@ fn validate_power(power: f64) -> Result<()> {
 }
 
 fn clamp_bin_index(raw: f64, bin_count: usize) -> usize {
-    if raw.is_sign_negative() {
-        0
-    } else {
-        (raw as usize).min(bin_count - 1)
-    }
+    if raw.is_sign_negative() { 0 } else { (raw as usize).min(bin_count - 1) }
 }

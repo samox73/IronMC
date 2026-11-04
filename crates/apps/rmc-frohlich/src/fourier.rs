@@ -92,11 +92,7 @@ pub fn analyze_self_energy(
         .iter()
         .map(
             |&tau| {
-                if tau <= max_time {
-                    s_prime_spline.evaluate(tau).unwrap_or(0.0)
-                } else {
-                    0.0
-                }
+                if tau <= max_time { s_prime_spline.evaluate(tau).unwrap_or(0.0) } else { 0.0 }
             },
         )
         .collect::<Vec<_>>();

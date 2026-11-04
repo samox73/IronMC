@@ -6,13 +6,13 @@
 use std::hint::black_box;
 use std::time::{Duration, Instant};
 
+use rmc_core::RmcError;
 use rmc_core::mc::{
-    run_chain, Kernel, Measurement, MetropolisKernel, NoopCallbacks, NullMeasurement, RunCallbacks,
-    SimulationCtx, SimulationParams,
+    Kernel, Measurement, MetropolisKernel, NoopCallbacks, NullMeasurement, RunCallbacks,
+    SimulationCtx, SimulationParams, run_chain,
 };
 use rmc_core::random::{ChainId, DefaultRng, SeedSource};
-use rmc_core::RmcError;
-use rmc_minimal::{build_bare, build_full, minimal_measurement, MinimalState, DEFAULT_BATCH_SIZE};
+use rmc_minimal::{DEFAULT_BATCH_SIZE, MinimalState, build_bare, build_full, minimal_measurement};
 use rmc_stats::ScalarJackknife;
 
 const DEFAULT_WARMUP_STEPS: u64 = 100_000;

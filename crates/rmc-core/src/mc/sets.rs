@@ -1,4 +1,4 @@
-use rand::distr::{weighted::WeightedIndex, Distribution};
+use rand::distr::{Distribution, weighted::WeightedIndex};
 use rand::{Rng, RngExt};
 
 use crate::{Result, RmcError};
@@ -167,11 +167,7 @@ impl<U> WeightedUpdateSet<U> {
         if let Some(weight) =
             self.entries.iter().find_map(
                 |entry| {
-                    if entry.weight < 0.0 {
-                        Some(entry.weight)
-                    } else {
-                        None
-                    }
+                    if entry.weight < 0.0 { Some(entry.weight) } else { None }
                 },
             )
         {

@@ -13,4 +13,4 @@ pub mod sanity;
 pub mod update_stats;
 pub mod updates;
 
-pub use diagram::{norm0, Diagram, Vertex};
+pub use diagram::{Diagram, Vertex, norm0};

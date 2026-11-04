@@ -9,10 +9,10 @@
 use cubecl::prelude::Runtime;
 use rand::{Rng, RngExt};
 use rmc_frohlich::config::RunConfig;
-use rmc_frohlich::flat::philox::{keyed_draw, PhiloxRng};
 use rmc_frohlich::flat::FlatDiagram;
+use rmc_frohlich::flat::philox::{PhiloxRng, keyed_draw};
 use rmc_frohlich::gpu::kernel::launch_reference_kernel;
-use rmc_frohlich::gpu::run::{run_device, SelectedRuntime};
+use rmc_frohlich::gpu::run::{SelectedRuntime, run_device};
 
 /// The device `u01` mirrors `rand`'s `gen::<f64>()`: words 2i, 2i+1 assembled low-first,
 /// `(v >> 11) * 2^-53`. If `rand` ever changes its conversion, this fails.

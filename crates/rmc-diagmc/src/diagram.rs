@@ -161,11 +161,7 @@ impl Diagram {
     }
 
     pub fn incoming_momentum(&self, key: usize) -> Vector3<f64> {
-        if key == self.head {
-            self.p_ext
-        } else {
-            self.vertices[self.vertices[key].prev].p_out
-        }
+        if key == self.head { self.p_ext } else { self.vertices[self.vertices[key].prev].p_out }
     }
 
     pub fn insert_arc(

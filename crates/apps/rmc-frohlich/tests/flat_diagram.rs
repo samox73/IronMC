@@ -1,11 +1,11 @@
 use nalgebra::Vector3;
-use rmc_core::mc::{run_chain, Kernel, MetropolisKernel, NoopCallbacks, SimulationParams};
+use rmc_core::mc::{Kernel, MetropolisKernel, NoopCallbacks, SimulationParams, run_chain};
 use rmc_core::random::{ChainId, SeedSource};
+use rmc_frohlich::Diagram;
 use rmc_frohlich::flat::updates::default_update_set as default_flat_update_set;
 use rmc_frohlich::flat::{FlatDiagram, NULL};
 use rmc_frohlich::measurement::PolaronMeasurement;
 use rmc_frohlich::updates::default_update_set;
-use rmc_frohlich::Diagram;
 
 fn q(x: f64, y: f64, z: f64) -> Vector3<f64> {
     Vector3::new(x, y, z)

@@ -1,15 +1,15 @@
 use std::f64::consts::PI;
 
 use rand::{Rng, RngExt};
+use rmc_core::Result;
 use rmc_core::dispatch_update;
 use rmc_core::mc::{WeightedUpdate, WeightedUpdateSet};
 use rmc_core::random::{
     exponential_sample_bounded, normal_from_uniforms, safe_exponential_sample,
     uniform_index_from_u01,
 };
-use rmc_core::Result;
 
-use crate::flat::{add_vec, scale_vec, sub_vec, unit, FlatDiagram, NULL};
+use crate::flat::{FlatDiagram, NULL, add_vec, scale_vec, sub_vec, unit};
 use crate::physics::{self, Vec3};
 
 dispatch_update! {
@@ -135,11 +135,7 @@ pub struct AddPhonon {
 
 impl AddPhonon {
     pub fn attempt<R: Rng + ?Sized>(&mut self, d: &FlatDiagram, rng: &mut R) -> f64 {
-        if d.order == 0 {
-            self.attempt_from_zero_fake(d, rng)
-        } else {
-            self.higher_order(d, rng)
-        }
+        if d.order == 0 { self.attempt_from_zero_fake(d, rng) } else { self.higher_order(d, rng) }
     }
 
     pub fn accept(&mut self, d: &mut FlatDiagram) {
@@ -342,11 +338,7 @@ impl RescaleDiagram {
         }
 
         let acceptance = physics::rescale_diagram_ratio(d.order, d.tau(), self.tau_prime, energy);
-        if acceptance.is_finite() {
-            acceptance
-        } else {
-            0.0
-        }
+        if acceptance.is_finite() { acceptance } else { 0.0 }
     }
 
     pub fn accept(&mut self, d: &mut FlatDiagram) {
@@ -382,11 +374,7 @@ impl ChangeQModulus {
         self.q_prime = normal_from_uniforms(rng.random(), rng.random(), q0, sigma);
         self.vertex1 = left;
         self.vertex2 = right;
-        if self.q_prime < 0.0 || !self.q_prime.is_finite() {
-            0.0
-        } else {
-            1.0
-        }
+        if self.q_prime < 0.0 || !self.q_prime.is_finite() { 0.0 } else { 1.0 }
     }
 
     pub fn accept(&mut self, d: &mut FlatDiagram) {
@@ -431,11 +419,7 @@ impl ChangeQDirection {
         );
         self.vertex1 = left;
         self.vertex2 = right;
-        if self.q_prime.iter().any(|x| x.is_nan()) {
-            0.0
-        } else {
-            1.0
-        }
+        if self.q_prime.iter().any(|x| x.is_nan()) { 0.0 } else { 1.0 }
     }
 
     pub fn accept(&mut self, d: &mut FlatDiagram) {
@@ -490,11 +474,7 @@ impl ChangeTopology {
             c1,
             c2,
         );
-        if acceptance.is_finite() {
-            acceptance
-        } else {
-            0.0
-        }
+        if acceptance.is_finite() { acceptance } else { 0.0 }
     }
 
     pub fn accept(&mut self, d: &mut FlatDiagram) {

@@ -4,13 +4,13 @@
 //! when the GPU host path needs the same code.
 
 use rand::{Rng, RngExt};
-use rmc_core::mc::{Measurement, SimulationStats, StepOutcome, Update};
 use rmc_core::Merge;
+use rmc_core::mc::{Measurement, SimulationStats, StepOutcome, Update};
 
 use crate::config::RunConfig;
-use crate::flat::philox::{keyed_draw, PhiloxRng};
-use crate::flat::updates::{default_update_set, FlatPolaronUpdate};
 use crate::flat::FlatDiagram;
+use crate::flat::philox::{PhiloxRng, keyed_draw};
+use crate::flat::updates::{FlatPolaronUpdate, default_update_set};
 use crate::measurement::{PolaronMeasurement, PolaronStats};
 use crate::physics;
 use crate::update_stats::UpdateStatEntry;

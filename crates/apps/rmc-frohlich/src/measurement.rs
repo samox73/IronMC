@@ -1,8 +1,8 @@
-use rmc_core::mc::Measurement;
 use rmc_core::Merge;
+use rmc_core::mc::Measurement;
 use rmc_grids::{Grid1d, LinearGrid};
 
-use crate::diagram::{norm0, Diagram};
+use crate::diagram::{Diagram, norm0};
 use crate::flat::FlatDiagram;
 use crate::physics;
 
@@ -333,11 +333,7 @@ impl PolaronStats {
                 }
             }
             let estimate = jackknife_from_batch_means(&batch_num, &batch_den, |num, den| {
-                if den == 0.0 {
-                    f64::NAN
-                } else {
-                    num * n0 / (den * binsize)
-                }
+                if den == 0.0 { f64::NAN } else { num * n0 / (den * binsize) }
             });
             mean.push(estimate.mean);
             stderr.push(estimate.stderr);
@@ -353,11 +349,7 @@ impl PolaronStats {
     pub fn jackknife_energy(&self) -> Estimate {
         let n0 = norm0(self.max_tau, self.dispersion());
         jackknife_ratio(&self.energy, self.energy_denominator(), |energy, zeroth| {
-            if zeroth == 0.0 {
-                f64::NAN
-            } else {
-                energy * n0 / zeroth
-            }
+            if zeroth == 0.0 { f64::NAN } else { energy * n0 / zeroth }
         })
     }
 
@@ -365,11 +357,7 @@ impl PolaronStats {
     pub fn jackknife_quasiparticle_weight(&self) -> Estimate {
         let n0 = norm0(self.max_tau, self.dispersion());
         jackknife_ratio(&self.a, self.energy_denominator(), |a, zeroth| {
-            if zeroth == 0.0 {
-                f64::NAN
-            } else {
-                1.0 / (1.0 + a * n0 / zeroth)
-            }
+            if zeroth == 0.0 { f64::NAN } else { 1.0 / (1.0 + a * n0 / zeroth) }
         })
     }
 

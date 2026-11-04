@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use nalgebra::Vector3;
 use rmc_core::Merge;
-use rmc_diagmc::{run_leg, summarize, DiagConfig, FrohlichModel, Model};
+use rmc_diagmc::{DiagConfig, FrohlichModel, Model, run_leg, summarize};
 
 fn config(chains: u64, max_steps: u64) -> DiagConfig {
     DiagConfig {

@@ -17,11 +17,7 @@ pub struct LocalRatio {
 
 impl LocalRatio {
     pub fn modulus(self) -> f64 {
-        if self.log_modulus > f64::MAX.ln() {
-            f64::INFINITY
-        } else {
-            self.log_modulus.exp()
-        }
+        if self.log_modulus > f64::MAX.ln() { f64::INFINITY } else { self.log_modulus.exp() }
     }
 }
 

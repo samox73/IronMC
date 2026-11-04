@@ -5,8 +5,8 @@ use rmc_stats::{
     Accumulator, ScalarAutocorrelation, ScalarBatchMeans, ScalarBlockMeans, ScalarCovariance,
     ScalarJackknife, ScalarMoments, VectorCovariance, VectorMoments, WeightedScalarMoments,
 };
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 fn round_trip<T>(value: &T) -> T
 where

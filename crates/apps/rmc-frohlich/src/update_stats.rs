@@ -105,11 +105,7 @@ fn merge_pair(lhs: Vec<UpdateStatEntry>, rhs: Vec<UpdateStatEntry>) -> Vec<Updat
 }
 
 fn acc_ratio(accepted: u64, proposed: u64) -> f64 {
-    if proposed == 0 {
-        0.0
-    } else {
-        accepted as f64 / proposed as f64
-    }
+    if proposed == 0 { 0.0 } else { accepted as f64 / proposed as f64 }
 }
 
 #[cfg(test)]

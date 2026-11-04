@@ -1,9 +1,9 @@
+use rmc_core::Merge;
 use rmc_core::mc::{
-    run_chain, Measurement, MetropolisKernel, NoopCallbacks, Runner, SimulationParams,
-    SingleUpdateSet, Update,
+    Measurement, MetropolisKernel, NoopCallbacks, Runner, SimulationParams, SingleUpdateSet,
+    Update, run_chain,
 };
 use rmc_core::random::{ChainId, SeedSource};
-use rmc_core::Merge;
 
 #[derive(Clone)]
 struct Increment;

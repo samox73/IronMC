@@ -1,5 +1,5 @@
-use rmc_core::mc::Measurement;
 use rmc_core::Merge;
+use rmc_core::mc::Measurement;
 use rmc_stats::{BinnedScalar, ScalarBlockMeans};
 
 #[test]

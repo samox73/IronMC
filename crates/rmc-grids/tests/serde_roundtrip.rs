@@ -1,8 +1,8 @@
 #![cfg(feature = "serde")]
 
 use rmc_grids::{AxisGrid, CustomGrid, Grid1d, LinearGrid, NdGrid, PowerGrid, SymmetricPowerGrid};
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 fn round_trip<T>(value: &T) -> T
 where

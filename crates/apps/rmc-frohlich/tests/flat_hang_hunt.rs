@@ -4,8 +4,8 @@
 use rand::RngExt;
 use rmc_core::mc::{Update, WeightedUpdateSet};
 use rmc_frohlich::config::RunConfig;
-use rmc_frohlich::flat::philox::{keyed_draw, PhiloxRng};
-use rmc_frohlich::flat::updates::{default_update_set, FlatPolaronUpdate};
+use rmc_frohlich::flat::philox::{PhiloxRng, keyed_draw};
+use rmc_frohlich::flat::updates::{FlatPolaronUpdate, default_update_set};
 use rmc_frohlich::flat::{FlatDiagram, NULL};
 
 const GROUP_SIZE: u64 = 64;

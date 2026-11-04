@@ -1,8 +1,8 @@
 use rmc_core::random::{
-    cauchy_pdf, cauchy_sample, exclusive_uniform_int_pdf, exponential_pdf, exponential_pdf_bounded,
-    exponential_sample, exponential_sample_bounded, normal_from_uniforms, normal_pdf,
-    safe_exponential_pdf, safe_exponential_sample, uniform_index, uniform_index_from_u01,
-    uniform_int_pdf, uniform_pdf, uniform_sample, ChainId, SeedSource,
+    ChainId, SeedSource, cauchy_pdf, cauchy_sample, exclusive_uniform_int_pdf, exponential_pdf,
+    exponential_pdf_bounded, exponential_sample, exponential_sample_bounded, normal_from_uniforms,
+    normal_pdf, safe_exponential_pdf, safe_exponential_sample, uniform_index,
+    uniform_index_from_u01, uniform_int_pdf, uniform_pdf, uniform_sample,
 };
 
 fn assert_close(actual: f64, expected: f64) {

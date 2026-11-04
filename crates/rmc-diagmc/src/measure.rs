@@ -364,11 +364,7 @@ fn energy_ratio(batch: &Batch, first_bin: usize) -> f64 {
         .iter()
         .map(|value| value.re)
         .sum::<f64>();
-    if denominator == 0.0 {
-        f64::NAN
-    } else {
-        numerator / denominator
-    }
+    if denominator == 0.0 { f64::NAN } else { numerator / denominator }
 }
 
 fn energy_curve(total: &Batch, batches: &[Batch]) -> Vec<Estimate> {
@@ -414,11 +410,7 @@ fn normalized_green(batch: &Batch, norm0: f64, bin_width: f64) -> Result<Vec<Com
 }
 
 fn zeroth_norm(energy: f64, max_tau: f64) -> f64 {
-    if energy.abs() < 1.0e-12 {
-        max_tau
-    } else {
-        -(-energy * max_tau).exp_m1() / energy
-    }
+    if energy.abs() < 1.0e-12 { max_tau } else { -(-energy * max_tau).exp_m1() / energy }
 }
 
 fn decay_fit(tau: &[f64], green: &[Complex64], mu: f64, tau_fit: f64) -> Result<(f64, f64)> {

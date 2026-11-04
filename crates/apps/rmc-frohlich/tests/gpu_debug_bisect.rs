@@ -7,7 +7,7 @@ use cubecl::prelude::Runtime;
 use rmc_frohlich::config::RunConfig;
 use rmc_frohlich::flat::philox::keyed_draw;
 use rmc_frohlich::gpu::kernel::launch_reference_kernel;
-use rmc_frohlich::gpu::run::{run_device, SelectedRuntime};
+use rmc_frohlich::gpu::run::{SelectedRuntime, run_device};
 
 #[test]
 fn find_first_divergent_step() {

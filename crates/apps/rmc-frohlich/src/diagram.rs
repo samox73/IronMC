@@ -1,5 +1,5 @@
 use nalgebra::Vector3;
-use slotmap::{new_key_type, Key, SlotMap};
+use slotmap::{Key, SlotMap, new_key_type};
 
 use crate::physics;
 

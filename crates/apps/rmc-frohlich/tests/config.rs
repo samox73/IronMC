@@ -1,4 +1,4 @@
-use rmc_frohlich::config::{default_max_order_gpu, RunConfig};
+use rmc_frohlich::config::{RunConfig, default_max_order_gpu};
 
 #[test]
 fn missing_gpu_order_limit_uses_default() {

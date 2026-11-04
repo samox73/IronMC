@@ -1,8 +1,8 @@
 use nalgebra::Vector3;
-use rmc_core::mc::Measurement;
 use rmc_core::Merge;
-use rmc_frohlich::measurement::{jackknife_ratio, BatchedSum, PolaronMeasurement};
-use rmc_frohlich::{sanity, Diagram};
+use rmc_core::mc::Measurement;
+use rmc_frohlich::measurement::{BatchedSum, PolaronMeasurement, jackknife_ratio};
+use rmc_frohlich::{Diagram, sanity};
 
 #[test]
 fn jackknife_ratio_constant_series_has_zero_error() {

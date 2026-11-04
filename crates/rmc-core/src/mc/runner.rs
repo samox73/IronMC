@@ -1,10 +1,10 @@
-use rayon::prelude::*;
 use rayon::ThreadPool;
+use rayon::prelude::*;
 
 use crate::random::{ChainId, DefaultRng, SeedSource};
 use crate::{Merge, Result, RmcError};
 
-use super::run::{run_chain, NoopCallbacks, NullMeasurement, SimulationParams, SimulationStats};
+use super::run::{NoopCallbacks, NullMeasurement, SimulationParams, SimulationStats, run_chain};
 use super::traits::{Kernel, Measurement, RunCallbacks};
 
 /// Everything a finished run produces. Ignore the fields you don't need.

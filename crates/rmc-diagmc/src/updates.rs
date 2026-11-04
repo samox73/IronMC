@@ -4,10 +4,10 @@ use nalgebra::Vector3;
 use num_complex::Complex64;
 use rand::rand_core::Infallible;
 use rand::{Rng, RngExt, TryRng};
+use rmc_core::Result;
 use rmc_core::dispatch_update;
 use rmc_core::mc::{Update, WeightedUpdate, WeightedUpdateSet};
 use rmc_core::random::{exponential_pdf_bounded, exponential_sample_bounded};
-use rmc_core::Result;
 
 use crate::diagram::Diagram;
 use crate::model::Model;

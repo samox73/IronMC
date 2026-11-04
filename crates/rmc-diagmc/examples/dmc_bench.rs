@@ -2,7 +2,7 @@ use std::hint::black_box;
 use std::sync::Arc;
 use std::time::Instant;
 
-use rmc_diagmc::{run, DiagConfig, FrohlichModel};
+use rmc_diagmc::{DiagConfig, FrohlichModel, run};
 
 fn main() -> rmc_core::Result<()> {
     let max_steps = std::env::args()

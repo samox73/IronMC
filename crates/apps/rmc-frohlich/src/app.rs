@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 
 use indicatif::{MultiProgress, ProgressBar};
 use rmc_core::mc::{
-    run_chain, IndicatifProgress, MetropolisKernel, NoopCallbacks, NullMeasurement, Runner,
-    SimulationStats, WeightedUpdateSet,
+    IndicatifProgress, MetropolisKernel, NoopCallbacks, NullMeasurement, Runner, SimulationStats,
+    WeightedUpdateSet, run_chain,
 };
 use rmc_core::random::{ChainId, SeedSource};
 use rmc_io::{load_payload_json, save_payload_json};
@@ -15,7 +15,7 @@ use crate::fourier::analyze_stats;
 use crate::measurement::Estimate;
 use crate::measurement::{PolaronMeasurement, PolaronStats};
 use crate::update_stats::{self, UpdateStatEntry};
-use crate::updates::{default_update_set, PolaronUpdate};
+use crate::updates::{PolaronUpdate, default_update_set};
 
 pub type PolaronKernel = MetropolisKernel<WeightedUpdateSet<PolaronUpdate>>;
 pub type AppResult<T> = Result<T, Box<dyn std::error::Error>>;

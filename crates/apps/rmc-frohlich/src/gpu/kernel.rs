@@ -15,7 +15,7 @@
 use cubecl::prelude::*;
 
 use crate::config::RunConfig;
-use crate::flat::batched::{run_batched, BatchedRunOutput};
+use crate::flat::batched::{BatchedRunOutput, run_batched};
 
 pub const DEFAULT_WORKGROUP_SIZE: u32 = 64;
 
@@ -156,11 +156,7 @@ fn is_finite_f64(x: f64) -> bool {
 /// `exp(x) - 1` with a short series below |x| < 1e-4 (no expm1 in the cube dialect).
 #[cube]
 fn exp_m1(x: f64) -> f64 {
-    if x.abs() < 1.0e-4 {
-        x * (1.0 + x * (0.5 + x * (1.0 / 6.0)))
-    } else {
-        x.exp() - 1.0
-    }
+    if x.abs() < 1.0e-4 { x * (1.0 + x * (0.5 + x * (1.0 / 6.0))) } else { x.exp() - 1.0 }
 }
 
 #[cube]
@@ -188,11 +184,7 @@ fn normal_from_uniforms(r1: f64, r2: f64, mean: f64, sigma: f64) -> f64 {
 #[cube]
 fn uniform_index(r: f64, len: u32) -> u32 {
     let idx = (r * f64::cast_from(len)) as u32;
-    if idx >= len {
-        len - 1
-    } else {
-        idx
-    }
+    if idx >= len { len - 1 } else { idx }
 }
 
 // ---------------------------------------------------------------------------

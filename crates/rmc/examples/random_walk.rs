@@ -5,12 +5,12 @@
 //! in `State` — threaded by the run loop and owned independently per chain — there is no
 //! `Arc<AtomicI64>` or other shared-mutable-state in the hot path, even for the parallel run.
 
+use rmc::Merge;
 use rmc::mc::{
-    run_chain, Measurement, MetropolisKernel, NoopCallbacks, Runner, SimulationParams,
-    SingleUpdateSet, Update,
+    Measurement, MetropolisKernel, NoopCallbacks, Runner, SimulationParams, SingleUpdateSet,
+    Update, run_chain,
 };
 use rmc::random::{ChainId, Rng, SeedSource};
-use rmc::Merge;
 
 #[derive(Clone)]
 struct RandomWalkUpdate {

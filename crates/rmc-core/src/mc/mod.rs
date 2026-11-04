@@ -6,9 +6,9 @@ mod sets;
 mod traits;
 
 pub use kernel::MetropolisKernel;
-pub use progress::{default_progress_style, IndicatifProgress};
+pub use progress::{IndicatifProgress, default_progress_style};
 pub use run::{
-    run_chain, NoopCallbacks, NullMeasurement, SimulationCtx, SimulationParams, SimulationStats,
+    NoopCallbacks, NullMeasurement, SimulationCtx, SimulationParams, SimulationStats, run_chain,
 };
 pub use runner::{RunReport, Runner};
 pub use sets::{SingleUpdateSet, WeightedUpdate, WeightedUpdateSet};
