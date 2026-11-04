@@ -89,7 +89,7 @@ graph TD
 
 ## Installation
 
-IronMC is not on crates.io yet; depend on it through git (MSRV: Rust 1.75):
+IronMC is not on crates.io yet; depend on it through git (MSRV: Rust 1.91):
 
 ```toml
 [dependencies]
