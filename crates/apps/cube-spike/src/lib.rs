@@ -13,7 +13,7 @@ pub fn divergent_loop_reference(input: &[u32], iterations: u32) -> Vec<u32> {
         .map(|(pos, &x)| {
             let mut acc = x;
             for i in 0..iterations + (pos as u32 % 3) {
-                acc = if (i + pos as u32) % 2 == 0 {
+                acc = if (i + pos as u32).is_multiple_of(2) {
                     acc.wrapping_add(3)
                 } else {
                     acc.wrapping_add(1)

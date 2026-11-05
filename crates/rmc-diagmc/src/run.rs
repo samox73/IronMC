@@ -208,13 +208,13 @@ pub fn run_leg(
     } else {
         cfg.chains
     };
-    if let Some(resume) = &resume {
-        if resume.len() != chains as usize {
-            return Err(RmcError::InvalidArgument(format!(
-                "checkpoint has {} chains, config wants {chains}",
-                resume.len()
-            )));
-        }
+    if let Some(resume) = &resume
+        && resume.len() != chains as usize
+    {
+        return Err(RmcError::InvalidArgument(format!(
+            "checkpoint has {} chains, config wants {chains}",
+            resume.len()
+        )));
     }
 
     let expected_samples = cfg.max_steps.div_ceil(cfg.steps_per_cycle) as usize;
@@ -347,7 +347,7 @@ where
     fn step(&mut self, diagram: &mut Diagram, rng: &mut R) -> Result<StepOutcome> {
         let outcome = self.inner.step(diagram, rng)?;
         self.steps += 1;
-        if self.steps % self.interval == 0 {
+        if self.steps.is_multiple_of(self.interval) {
             // Structural audit (link symmetry, τ ordering, momenta re-derived
             // from the arc q's). This is the only momentum check that survives
             // release builds, where the per-mutation debug_asserts vanish.

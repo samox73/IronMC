@@ -29,15 +29,15 @@ const NULL: u32 = 0xffff_ffff;
 /// `flat::NULL` widened for usize-typed slot locals.
 const NULLS: usize = 0xffff_ffff;
 /// 2^-53, the scale of `rand`'s 53-bit `f64` conversion.
-const U01_SCALE: f64 = 1.110_223_024_625_156_5e-16;
+const U01_SCALE: f64 = f64::EPSILON / 2.0;
 /// `f64::EPSILON`.
-const EPS: f64 = 2.220_446_049_250_313e-16;
+const EPS: f64 = f64::EPSILON;
 /// `physics::DELTA_TAU_LIMIT` = 10 * f64::EPSILON.
-const DELTA_TAU_LIMIT: f64 = 2.220_446_049_250_313e-15;
+const DELTA_TAU_LIMIT: f64 = crate::physics::DELTA_TAU_LIMIT;
 /// `physics::p0()` = sqrt(2 * MASS * OMEGA) = sqrt(2).
-const P0: f64 = 1.414_213_562_373_095_1;
+const P0: f64 = std::f64::consts::SQRT_2;
 /// `f64::MAX`, for the finiteness test (false for NaN and infinities).
-const F64_MAX: f64 = 1.797_693_134_862_315_7e308;
+const F64_MAX: f64 = f64::MAX;
 const PI: f64 = core::f64::consts::PI;
 
 // ---------------------------------------------------------------------------
@@ -56,7 +56,6 @@ fn mul_lo(a: u32, b: u32) -> u32 {
 
 /// Word `select` of `philox4x32_10([c0, c1, c2, c3], [seed_lo, seed_hi])`.
 #[cube]
-#[allow(clippy::too_many_arguments)]
 fn philox_block_word(
     seed_lo: u32,
     seed_hi: u32,
@@ -103,7 +102,6 @@ fn philox_block_word(
 /// Word `word` of the CPU `PhiloxRng { seed, chain_id: id, step }` stream:
 /// word `word % 4` of the block with counter `[id_lo, id_hi, step_lo, step_hi ^ (word / 4)]`.
 #[cube]
-#[allow(clippy::too_many_arguments)]
 fn philox_word(
     seed_lo: u32,
     seed_hi: u32,
@@ -127,7 +125,6 @@ fn philox_word(
 /// `rand`'s `gen::<f64>()` on the CPU Philox stream: words `word`, `word + 1` assembled
 /// low-first into a u64, then `(v >> 11) * 2^-53`.
 #[cube]
-#[allow(clippy::too_many_arguments)]
 fn u01(
     seed_lo: u32,
     seed_hi: u32,
@@ -223,7 +220,6 @@ fn phonon_lambda(qx: f64, qy: f64, qz: f64) -> f64 {
 }
 
 #[cube]
-#[allow(clippy::too_many_arguments)]
 fn change_internal_tau_lambda(
     px: f64,
     py: f64,
@@ -252,7 +248,9 @@ fn change_internal_tau_lambda(
 /// `[x, y, z]` triples at `3 * (c * capacity + s) + component`. Samples are cycle-major, update
 /// stats chain-major.
 #[cube(launch)]
-#[allow(clippy::too_many_arguments)]
+// `mem::swap` and `is_nan` do not exist in the CubeCL dialect: the manual swap and the
+// `x == x` NaN test below are deliberate.
+#[allow(clippy::manual_swap, clippy::eq_op)]
 fn mc_kernel(
     tau: &mut Array<f64>,
     p_out: &mut Array<f64>,
@@ -1292,7 +1290,11 @@ impl<R: Runtime> DeviceState<R> {
             u32::from_bytes(&self.client.read_one_unchecked(h.clone())).to_vec()
         };
         let unflat3 = |v: Vec<f64>| -> Vec<[f64; 3]> {
-            v.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect()
+            v.as_chunks::<3>()
+                .0
+                .iter()
+                .map(|c| [c[0], c[1], c[2]])
+                .collect()
         };
         crate::gpu::state::GpuStateBuffers {
             chains: self.chains as usize,

@@ -109,6 +109,7 @@ impl Update<IsingLattice> for SpinFlipUpdate {
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn build_chain(
     _chain: ChainId,
 ) -> (

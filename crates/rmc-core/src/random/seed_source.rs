@@ -44,7 +44,7 @@ impl SeedSource {
     pub fn seed_for(&self, chain: ChainId) -> [u8; 32] {
         let mut seed = [0_u8; 32];
         let mut state = self.master ^ chain.0.wrapping_mul(0x9e37_79b9_7f4a_7c15);
-        for chunk in seed.chunks_exact_mut(8) {
+        for chunk in seed.as_chunks_mut::<8>().0 {
             state = mix64(state);
             chunk.copy_from_slice(&state.to_le_bytes());
         }

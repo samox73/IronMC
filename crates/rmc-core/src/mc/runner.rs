@@ -144,14 +144,14 @@ impl<'p, B, CB, WCB> Runner<'p, B, CB, WCB> {
         if let Some(warmup) = &self.warmup {
             warmup.validate()?;
         }
-        if let Some(resume) = &resume {
-            if resume.len() != self.chains as usize {
-                return Err(RmcError::InvalidArgument(format!(
-                    "resume has {} chains, runner is configured for {}",
-                    resume.len(),
-                    self.chains
-                )));
-            }
+        if let Some(resume) = &resume
+            && resume.len() != self.chains as usize
+        {
+            return Err(RmcError::InvalidArgument(format!(
+                "resume has {} chains, runner is configured for {}",
+                resume.len(),
+                self.chains
+            )));
         }
 
         // Run one chain and return its final (state, rng) for checkpointing.
@@ -166,22 +166,21 @@ impl<'p, B, CB, WCB> Runner<'p, B, CB, WCB> {
                 Some((state, rng)) => (state, rng, false),
                 None => (built_state, self.seed.rng_for(chain_id), true),
             };
-            if do_warmup {
-                if let Some(warmup) = self.warmup {
-                    if warmup.max_steps > 0 {
-                        let callbacks = (self.warmup_callbacks)(chain_id);
-                        let (warm_state, _stats, ()) = run_chain(
-                            state,
-                            &mut rng,
-                            &mut kernel,
-                            NullMeasurement,
-                            warmup,
-                            callbacks,
-                        )?;
-                        state = warm_state;
-                        kernel.reset_stats();
-                    }
-                }
+            if do_warmup
+                && let Some(warmup) = self.warmup
+                && warmup.max_steps > 0
+            {
+                let callbacks = (self.warmup_callbacks)(chain_id);
+                let (warm_state, _stats, ()) = run_chain(
+                    state,
+                    &mut rng,
+                    &mut kernel,
+                    NullMeasurement,
+                    warmup,
+                    callbacks,
+                )?;
+                state = warm_state;
+                kernel.reset_stats();
             }
             let callbacks = (self.callbacks)(chain_id);
             let (state, stats, output) =

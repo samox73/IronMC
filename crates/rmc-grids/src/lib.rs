@@ -799,7 +799,7 @@ pub struct SymmetricPowerGrid {
 
 impl SymmetricPowerGrid {
     pub fn new(first: f64, last: f64, len: usize, power: f64) -> Result<Self> {
-        if len < 3 || len % 2 == 0 {
+        if len < 3 || len.is_multiple_of(2) {
             return Err(GridError::InvalidSymmetricSize(len));
         }
         validate_grid(first, last, len)?;
@@ -896,7 +896,7 @@ pub fn integer_subrange(center: usize, len: usize, width: usize) -> Option<usize
         return None;
     }
 
-    let offset = if width % 2 == 0 { width / 2 - 1 } else { width / 2 };
+    let offset = if width.is_multiple_of(2) { width / 2 - 1 } else { width / 2 };
     Some(center.saturating_sub(offset).min(len - width))
 }
 

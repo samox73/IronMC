@@ -1,4 +1,4 @@
-use std::f64::consts::PI;
+use std::f64::consts::{PI, SQRT_2};
 
 use nalgebra::Vector3;
 use num_complex::Complex64;
@@ -38,7 +38,7 @@ impl FrohlichModel {
         Self { alpha }
     }
 
-    const P0: f64 = std::f64::consts::SQRT_2;
+    const P0: f64 = SQRT_2;
 }
 
 impl Model for FrohlichModel {

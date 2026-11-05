@@ -376,7 +376,7 @@ where
     F: FnMut(f64) -> f64,
 {
     validate_interval(start, end)?;
-    if panels == 0 || panels % 2 != 0 {
+    if panels == 0 || !panels.is_multiple_of(2) {
         return Err(NumericError::InvalidPanelCount {
             rule: "simpson",
             required: "a positive even panel count",

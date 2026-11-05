@@ -52,11 +52,10 @@ impl TryRng for PhiloxRng {
     }
 
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Infallible> {
-        let mut chunks = dest.chunks_exact_mut(4);
-        for chunk in &mut chunks {
-            chunk.copy_from_slice(&self.next_u32().to_le_bytes());
+        let (chunks, remainder) = dest.as_chunks_mut::<4>();
+        for chunk in chunks {
+            *chunk = self.next_u32().to_le_bytes();
         }
-        let remainder = chunks.into_remainder();
         if !remainder.is_empty() {
             let word = self.next_u32().to_le_bytes();
             remainder.copy_from_slice(&word[..remainder.len()]);

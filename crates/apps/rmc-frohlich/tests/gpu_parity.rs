@@ -7,7 +7,7 @@
 #![cfg(any(feature = "gpu-cpu", feature = "gpu-hip", feature = "gpu-cuda"))]
 
 use cubecl::prelude::Runtime;
-use rand::{Rng, RngExt};
+use rand::RngExt;
 use rmc_frohlich::config::RunConfig;
 use rmc_frohlich::flat::FlatDiagram;
 use rmc_frohlich::flat::philox::{PhiloxRng, keyed_draw};

@@ -874,11 +874,11 @@ mod tests {
         }
 
         assert_eq!(binned.total_count(), samples.len() as u64);
-        for bin in 0..num_bins {
+        for (bin, per) in per_bin.iter().enumerate() {
             for batch in 0..n_batches {
                 assert_eq!(
                     binned.batch_mean(bin, batch),
-                    per_bin[bin].batch_mean(batch),
+                    per.batch_mean(batch),
                     "batch mean mismatch at bin {bin}, batch {batch}"
                 );
             }

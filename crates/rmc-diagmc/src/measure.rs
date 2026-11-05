@@ -182,11 +182,12 @@ impl Measurement<Diagram> for DiagMeasurement {
         // fold it into its predecessor (still contiguous in MC time). A
         // complete run's last batch is short by at most n_batches − 1 samples
         // (batch_len rounds up) and never triggers this.
-        if let Some(last) = self.batches.iter().rposition(|batch| batch.count > 0) {
-            if last > 0 && self.batches[last].count.saturating_mul(2) < self.batch_len as u64 {
-                let tail = std::mem::take(&mut self.batches[last]);
-                self.batches[last - 1].add_assign(&tail);
-            }
+        if let Some(last) = self.batches.iter().rposition(|batch| batch.count > 0)
+            && last > 0
+            && self.batches[last].count.saturating_mul(2) < self.batch_len as u64
+        {
+            let tail = std::mem::take(&mut self.batches[last]);
+            self.batches[last - 1].add_assign(&tail);
         }
         MeasurementData {
             batches: self.batches,
@@ -233,8 +234,8 @@ pub fn summarize(
         let mut e0_leave_one = Vec::with_capacity(nonempty.len());
         let mut z_leave_one = Vec::with_capacity(nonempty.len());
         let mut skipped = 0_usize;
-        for omitted in 0..nonempty.len() {
-            let sample = nonempty[omitted].subtracted_from(&total);
+        for batch in &nonempty {
+            let sample = batch.subtracted_from(&total);
             match normalized_green(&sample, norm0, bin_width)
                 .and_then(|green| decay_fit(&tau, &green, mu, tau_fit))
             {
@@ -328,7 +329,7 @@ pub fn summarize(
             mean: sign_mean,
             stderr: sign_jackknife.standard_error().unwrap_or(0.0),
         },
-        green: (!fixed_tau).then(|| GreenFunction {
+        green: (!fixed_tau).then_some(GreenFunction {
             tau,
             value: green_values,
         }),

@@ -109,6 +109,7 @@ impl Mirror {
 }
 
 /// Two `BinnedScalar`s estimating ⟨x⟩ and ⟨x²⟩.
+#[allow(clippy::type_complexity)] // `impl Fn` cannot be named in a type alias
 pub fn minimal_measurement(
     block_size: usize,
 ) -> Result<(

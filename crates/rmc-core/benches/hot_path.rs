@@ -84,7 +84,7 @@ impl TunedUpdate {
         self.proposal = state
             .wrapping_add(self.delta)
             .wrapping_add(rng.random_range(0..8));
-        if self.proposal % self.reject_every == 0 { 0.15 } else { 0.85 }
+        if self.proposal.is_multiple_of(self.reject_every) { 0.15 } else { 0.85 }
     }
 
     fn accept(&mut self, state: &mut u64) {
