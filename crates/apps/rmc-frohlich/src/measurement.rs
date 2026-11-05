@@ -269,6 +269,15 @@ pub struct Estimate {
     pub stderr: f64,
 }
 
+impl Estimate {
+    pub const fn nan() -> Self {
+        Self {
+            mean: f64::NAN,
+            stderr: f64::NAN,
+        }
+    }
+}
+
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct SeriesEstimate {
     pub tau: Vec<f64>,
@@ -316,11 +325,9 @@ impl PolaronStats {
         let n_batches = self.zeroth.n_batches();
         let mut mean = Vec::with_capacity(self.exact.num_bins());
         let mut stderr = Vec::with_capacity(self.exact.num_bins());
-        let mut batch_num = Vec::with_capacity(n_batches);
-        let mut batch_den = Vec::with_capacity(n_batches);
+        let mut batches = Vec::with_capacity(n_batches);
         for bin in 0..self.exact.num_bins() {
-            batch_num.clear();
-            batch_den.clear();
+            batches.clear();
             // `exact` (binned) and `zeroth` (scalar) share the same global sample schedule and
             // per-batch counts, so a batch is non-empty for both or neither.
             for batch in 0..n_batches {
@@ -328,11 +335,10 @@ impl PolaronStats {
                     self.exact.batch_mean(bin, batch),
                     self.zeroth.batch_mean(batch),
                 ) {
-                    batch_num.push(num_mean);
-                    batch_den.push(den_mean);
+                    batches.push([num_mean, den_mean]);
                 }
             }
-            let estimate = jackknife_from_batch_means(&batch_num, &batch_den, |num, den| {
+            let estimate = jackknife_from_batch_means(&batches, |[num, den]| {
                 if den == 0.0 { f64::NAN } else { num * n0 / (den * binsize) }
             });
             mean.push(estimate.mean);
@@ -345,11 +351,46 @@ impl PolaronStats {
         }
     }
 
-    /// Jackknife estimate of the ground-state energy.
+    /// Jackknife estimate of the self-energy `Σ(E_est)` at the current energy estimate.
+    ///
+    /// This equals the polaron energy only at self-consistency, `E_est = ε_k + Σ(E_est)`; use
+    /// [`jackknife_energy_newton`](Self::jackknife_energy_newton) for the energy itself.
     pub fn jackknife_energy(&self) -> Estimate {
         let n0 = norm0(self.max_tau, self.dispersion());
         jackknife_ratio(&self.energy, self.energy_denominator(), |energy, zeroth| {
             if zeroth == 0.0 { f64::NAN } else { energy * n0 / zeroth }
+        })
+    }
+
+    /// Jackknife estimate of the polaron energy, one Newton step from `E_est` on the fixed-point
+    /// equation `E = ε_k + Σ(E)`:
+    ///
+    /// `E0 ≈ E_est + Z(E_est) · [ε_k + Σ(E_est) − E_est]`, with `Z = 1 / (1 − Σ'(E_est))`.
+    ///
+    /// The step removes the first-order error `Σ'(E0) · (E_est − E0)` that `Σ(E_est)` carries
+    /// whenever the self-consistent loop stopped short of the fixed point. `energy`, `a` and the
+    /// denominator are jackknifed jointly on their shared batch schedule, so the stderr is that of
+    /// the corrected value (the pieces are correlated per batch), not of the pieces.
+    pub fn jackknife_energy_newton(&self) -> Estimate {
+        let n0 = norm0(self.max_tau, self.dispersion());
+        let e_est = self.energy_estimate;
+        let dispersion = self.bare_dispersion();
+        let den = self.energy_denominator();
+        let batches = (0..den.n_batches())
+            .filter_map(|batch| {
+                Some([
+                    self.energy.batch_mean(batch)?,
+                    self.a.batch_mean(batch)?,
+                    den.batch_mean(batch)?,
+                ])
+            })
+            .collect::<Vec<_>>();
+        jackknife_from_batch_means(&batches, |[energy, a, zeroth]| {
+            if zeroth == 0.0 {
+                f64::NAN
+            } else {
+                e_est + (dispersion + energy * n0 / zeroth - e_est) / (1.0 + a * n0 / zeroth)
+            }
         })
     }
 
@@ -373,8 +414,13 @@ impl PolaronStats {
             .collect()
     }
 
+    /// Bare dispersion `ε_k = k² / 2m` of the external momentum.
+    fn bare_dispersion(&self) -> f64 {
+        self.momentum * self.momentum / (2.0 * Diagram::MASS)
+    }
+
     fn dispersion(&self) -> f64 {
-        self.momentum * self.momentum / (2.0 * Diagram::MASS) - self.mu
+        self.bare_dispersion() - self.mu
     }
 
     fn energy_denominator(&self) -> &BatchedSum {
@@ -579,7 +625,9 @@ impl PolaronMeasurement {
             .push(self.stats.self_consistent_period);
     }
 
-    fn reevaluate_energy_estimate(&mut self, d: &Diagram) {
+    /// One self-consistent reweighting step at the end of a window: `E_est ← ε_k + Σ(E_est)`
+    /// (`bare_dispersion` is `ε_k` of the sampled diagram), then a fresh energy window.
+    fn reevaluate_energy_estimate(&mut self, bare_dispersion: f64) {
         let next_period =
             ((self.stats.self_consistent_period as f64) * self.stats.period_multiplier) as usize;
         // If the next period cannot be completed before the run ends, resetting here would leave
@@ -593,45 +641,7 @@ impl PolaronMeasurement {
         if !estimate.mean.is_finite() {
             return;
         }
-        let new_estimate = Diagram::bare_dispersion(&d.momentum_out()) + estimate.mean;
-        self.stats.energy_estimate = new_estimate;
-        self.stats.energy_estimates.push(new_estimate);
-        self.stats.energy.reset();
-        self.stats.a.reset();
-        if let Some(zeroth) = &mut self.stats.zeroth_for_energy {
-            zeroth.reset();
-        }
-        self.stats.self_consistent_count = 0;
-        self.stats.self_consistent_period = next_period;
-        self.stats
-            .self_consistent_periods
-            .push(self.stats.self_consistent_period);
-    }
-
-    fn reevaluate_flat_energy_estimate(&mut self, d: &FlatDiagram) {
-        let next_period =
-            ((self.stats.self_consistent_period as f64) * self.stats.period_multiplier) as usize;
-        if self.stats.sample_count + next_period > self.stats.expected_samples {
-            self.stats.self_consistent_period = usize::MAX;
-            return;
-        }
-        let estimate = self.stats.jackknife_energy();
-        if !estimate.mean.is_finite() {
-            return;
-        }
-        let new_estimate = physics::bare_dispersion(d.momentum_out()) + estimate.mean;
-        self.stats.energy_estimate = new_estimate;
-        self.stats.energy_estimates.push(new_estimate);
-        self.stats.energy.reset();
-        self.stats.a.reset();
-        if let Some(zeroth) = &mut self.stats.zeroth_for_energy {
-            zeroth.reset();
-        }
-        self.stats.self_consistent_count = 0;
-        self.stats.self_consistent_period = next_period;
-        self.stats
-            .self_consistent_periods
-            .push(self.stats.self_consistent_period);
+        self.reset_flat_energy_window(bare_dispersion + estimate.mean, next_period);
     }
 }
 
@@ -671,7 +681,7 @@ impl Measurement<Diagram> for PolaronMeasurement {
         self.stats.sample_count += 1;
         self.stats.self_consistent_count += 1;
         if self.stats.self_consistent_count > self.stats.self_consistent_period {
-            self.reevaluate_energy_estimate(d);
+            self.reevaluate_energy_estimate(Diagram::bare_dispersion(&d.momentum_out()));
         }
     }
 
@@ -738,7 +748,7 @@ impl Measurement<FlatDiagram> for PolaronMeasurement {
         };
         self.measure_flat_sample(d.tau(), d.order, exact_value);
         if self.stats.self_consistent_count > self.stats.self_consistent_period {
-            self.reevaluate_flat_energy_estimate(d);
+            self.reevaluate_energy_estimate(physics::bare_dispersion(d.momentum_out()));
         }
     }
 
@@ -752,53 +762,43 @@ where
     F: Fn(f64, f64) -> f64,
 {
     assert_eq!(num.n_batches(), den.n_batches());
-    let mut batch_num = Vec::new();
-    let mut batch_den = Vec::new();
-    for batch in 0..num.n_batches() {
-        if let (Some(num_mean), Some(den_mean)) = (num.batch_mean(batch), den.batch_mean(batch)) {
-            batch_num.push(num_mean);
-            batch_den.push(den_mean);
-        }
-    }
-    jackknife_from_batch_means(&batch_num, &batch_den, f)
+    let batches = (0..num.n_batches())
+        .filter_map(|batch| Some([num.batch_mean(batch)?, den.batch_mean(batch)?]))
+        .collect::<Vec<_>>();
+    jackknife_from_batch_means(&batches, |[num, den]| f(num, den))
 }
 
-/// Delete-one jackknife of a ratio functional `f(num, den)` over per-batch means.
+/// Delete-one jackknife of a functional `f` of `N` accumulator means over per-batch means.
 ///
-/// `batch_num[k]` / `batch_den[k]` are the numerator/denominator means of the (non-empty)
-/// batches, paired on the same batch schedule.
-fn jackknife_from_batch_means<F>(batch_num: &[f64], batch_den: &[f64], f: F) -> Estimate
-where
-    F: Fn(f64, f64) -> f64,
-{
-    debug_assert_eq!(batch_num.len(), batch_den.len());
-    let n = batch_num.len();
+/// `batches[k]` holds the `N` means of the (non-empty) batch `k`, all on the same batch
+/// schedule, so `f` sees jointly resampled inputs and the stderr accounts for their correlation.
+fn jackknife_from_batch_means<const N: usize>(
+    batches: &[[f64; N]],
+    f: impl Fn([f64; N]) -> f64,
+) -> Estimate {
+    let n = batches.len();
     if n < 2 {
-        return Estimate {
-            mean: f64::NAN,
-            stderr: f64::NAN,
-        };
+        return Estimate::nan();
     }
 
-    let total_num: f64 = batch_num.iter().sum();
-    let total_den: f64 = batch_den.iter().sum();
-    let mut theta = Vec::with_capacity(n);
-    for batch in 0..n {
-        let loo_num = (total_num - batch_num[batch]) / (n - 1) as f64;
-        let loo_den = (total_den - batch_den[batch]) / (n - 1) as f64;
-        theta.push(f(loo_num, loo_den));
+    let mut total = [0.0; N];
+    for batch in batches {
+        for (total, value) in total.iter_mut().zip(batch) {
+            *total += value;
+        }
     }
+    let theta = batches.iter().map(|batch| {
+        let mut loo = [0.0; N];
+        for ((loo, total), value) in loo.iter_mut().zip(total).zip(batch) {
+            *loo = (total - value) / (n - 1) as f64;
+        }
+        f(loo)
+    });
 
-    let finite = theta
-        .into_iter()
-        .filter(|value| value.is_finite())
-        .collect::<Vec<_>>();
+    let finite = theta.filter(|value| value.is_finite()).collect::<Vec<_>>();
     let n = finite.len();
     if n < 2 {
-        return Estimate {
-            mean: f64::NAN,
-            stderr: f64::NAN,
-        };
+        return Estimate::nan();
     }
 
     let mean = finite.iter().sum::<f64>() / n as f64;
@@ -906,17 +906,45 @@ mod tests {
             exact.push(0, 6.0);
             zeroth.push(3.0);
         }
-        let mut batch_num = Vec::new();
-        let mut batch_den = Vec::new();
-        for batch in 0..n_batches {
-            if let (Some(nm), Some(dm)) = (exact.batch_mean(0, batch), zeroth.batch_mean(batch)) {
-                batch_num.push(nm);
-                batch_den.push(dm);
-            }
-        }
-        let estimate = jackknife_from_batch_means(&batch_num, &batch_den, |num, den| num / den);
+        let batches = (0..n_batches)
+            .filter_map(|batch| Some([exact.batch_mean(0, batch)?, zeroth.batch_mean(batch)?]))
+            .collect::<Vec<_>>();
+        let estimate = jackknife_from_batch_means(&batches, |[num, den]| num / den);
         assert!((estimate.mean - 2.0).abs() < 1.0e-12);
         assert!(estimate.stderr < 1.0e-12);
+    }
+
+    /// On batch-constant data the Newton energy is exactly `E_est + Z · (Σ − E_est)` (ε_k = 0)
+    /// with zero error, and it is invariant under the fixed point: feeding it back as `E_est`
+    /// reproduces itself to first order.
+    #[test]
+    fn newton_energy_is_fixed_point_step_of_sigma_and_z() {
+        let d0 = Diagram::default();
+        let d2 = Diagram::from_arcs(
+            1.0,
+            -1.1,
+            0.0,
+            30.0,
+            1.0,
+            &[
+                (0.0, 1.0, nalgebra::Vector3::new(0.2, 0.1, 0.0)),
+                (0.2, 0.8, nalgebra::Vector3::new(0.1, -0.2, 0.05)),
+            ],
+        );
+        let e_est = -0.9;
+        let mut measurement = PolaronMeasurement::new(10, 30.0, 4, 80, e_est, usize::MAX, 1.5, &d0);
+        for _ in 0..40 {
+            measurement.measure(&d0);
+            measurement.measure(&d2);
+        }
+        let stats = measurement.finish();
+        let sigma = stats.jackknife_energy();
+        let z = stats.jackknife_quasiparticle_weight();
+        let newton = stats.jackknife_energy_newton();
+        assert!(sigma.stderr < 1.0e-12 && z.stderr < 1.0e-12);
+        assert!((newton.mean - (e_est + z.mean * (sigma.mean - e_est))).abs() < 1.0e-12);
+        assert!(newton.stderr < 1.0e-12);
+        assert_ne!(newton.mean, sigma.mean);
     }
 
     #[test]

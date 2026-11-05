@@ -55,8 +55,14 @@ pub struct ValidationSummary {
     pub cycles_done: u64,
     pub sample_count: usize,
     pub chains: u64,
+    /// Polaron energy: one Newton step from the final `energy_estimate`, see
+    /// [`PolaronStats::jackknife_energy_newton`].
     pub energy: Estimate,
     pub quasiparticle_weight: Estimate,
+    /// Raw self-energy `Σ(E_est)` at the final `energy_estimate`; equals `energy` (up to `ε_k`)
+    /// only when the self-consistent loop converged.
+    #[serde(default = "Estimate::nan")]
+    pub selfenergy_at_estimate: Estimate,
     pub target_energy: f64,
     pub target_quasiparticle_weight: f64,
     pub energy_delta: f64,
@@ -82,6 +88,7 @@ impl ValidationSummary {
                 "chains: {chains}\n",
                 "E: {e:.8} +/- {e_err:.8}  target {e_target:.8}  delta {e_delta:.8}\n",
                 "Z: {z:.8} +/- {z_err:.8}  target {z_target:.8}  delta {z_delta:.8}\n",
+                "Sigma(E_est): {sigma:.8} +/- {sigma_err:.8}\n",
                 "zeroth_mean: {zeroth:.8}\n",
                 "mean_order: {order:.8}\n",
                 "finite_selfenergy_bins: {finite}/{total}\n",
@@ -101,6 +108,8 @@ impl ValidationSummary {
             z_err = self.quasiparticle_weight.stderr,
             z_target = self.target_quasiparticle_weight,
             z_delta = self.quasiparticle_weight_delta,
+            sigma = self.selfenergy_at_estimate.mean,
+            sigma_err = self.selfenergy_at_estimate.stderr,
             zeroth = self.zeroth_mean.unwrap_or(f64::NAN),
             order = self.mean_order.unwrap_or(f64::NAN),
             finite = self.finite_selfenergy_bins,
@@ -329,8 +338,9 @@ pub fn summarize_output(cfg: &RunConfig, output: &RunOutput) -> ValidationSummar
     const TARGET_ENERGY: f64 = -1.016;
     const TARGET_Z: f64 = 0.59;
 
-    let energy = output.measurement.jackknife_energy();
+    let energy = output.measurement.jackknife_energy_newton();
     let quasiparticle_weight = output.measurement.jackknife_quasiparticle_weight();
+    let selfenergy_at_estimate = output.measurement.jackknife_energy();
     let selfenergy = output.measurement.jackknife_selfenergy();
     let finite_selfenergy_bins = selfenergy
         .mean
@@ -347,6 +357,7 @@ pub fn summarize_output(cfg: &RunConfig, output: &RunOutput) -> ValidationSummar
         chains: cfg.chains,
         energy,
         quasiparticle_weight,
+        selfenergy_at_estimate,
         target_energy: TARGET_ENERGY,
         target_quasiparticle_weight: TARGET_Z,
         energy_delta: energy.mean - TARGET_ENERGY,
