@@ -1,4 +1,4 @@
-use criterion::{BatchSize, Criterion, black_box, criterion_group, criterion_main};
+use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use rand::{Rng, RngExt};
 use rmc_core::dispatch_update;
 use rmc_core::mc::{
@@ -6,6 +6,7 @@ use rmc_core::mc::{
     WeightedUpdate, WeightedUpdateSet, run_chain,
 };
 use rmc_core::random::{ChainId, SeedSource};
+use std::hint::black_box;
 
 #[derive(Clone)]
 struct IncrementStateUpdate;
