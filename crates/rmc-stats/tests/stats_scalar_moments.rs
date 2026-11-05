@@ -257,3 +257,19 @@ fn weighted_scalar_moments_merge_treats_empty_accumulators_as_identity() {
     assert_eq!(WeightedScalarMoments::new().merge(moments), moments);
     assert_eq!(moments.merge(WeightedScalarMoments::new()), moments);
 }
+
+#[test]
+fn error_bar_calibration_compares_scatter_with_stated_error() {
+    use rmc_stats::ErrorBarCalibration;
+
+    // Means 1, 2, 3 (sample std 1) with stated errors 0.5 each → ratio 2.
+    let calibration = ErrorBarCalibration::from_estimates([(1.0, 0.5), (2.0, 0.5), (3.0, 0.5)]);
+    assert!((calibration.empirical_std - 1.0).abs() < 1.0e-12);
+    assert!((calibration.mean_stderr - 0.5).abs() < 1.0e-12);
+    assert!((calibration.ratio() - 2.0).abs() < 1.0e-12);
+    assert!(
+        ErrorBarCalibration::from_estimates([(1.0, 0.5)])
+            .ratio()
+            .is_nan()
+    );
+}

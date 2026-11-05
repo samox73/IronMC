@@ -24,6 +24,7 @@ cubecl = { version = "=0.10.0", default-features = false, features = ["std", "st
 
 [dev-dependencies]
 proptest.workspace = true
+rmc-stats.workspace = true
 
 [features]
 default = []

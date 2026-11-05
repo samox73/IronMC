@@ -135,6 +135,42 @@ impl Merge for ScalarMoments {
     }
 }
 
+/// Seed-to-seed calibration of stated error bars.
+///
+/// Given independent estimates `(mean, stderr)` of one quantity (for example one run per seed),
+/// this compares the empirical standard deviation of the means with the mean stated standard
+/// error. Honest error bars give [`ratio`](Self::ratio) ≈ 1; a ratio well above 1 means the stated
+/// errors are too small (an unaccounted error source or correlated batches), well below 1 means
+/// they are too large.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ErrorBarCalibration {
+    /// Sample standard deviation of the means (`n - 1` normalization); `NaN` below two estimates.
+    pub empirical_std: f64,
+    /// Mean of the stated standard errors; `NaN` without estimates.
+    pub mean_stderr: f64,
+}
+
+impl ErrorBarCalibration {
+    /// Build from `(mean, stderr)` pairs of independent estimates of the same quantity.
+    pub fn from_estimates(estimates: impl IntoIterator<Item = (f64, f64)>) -> Self {
+        let mut means = ScalarMoments::new();
+        let mut stderrs = ScalarMoments::new();
+        for (mean, stderr) in estimates {
+            means.accumulate(mean);
+            stderrs.accumulate(stderr);
+        }
+        Self {
+            empirical_std: means.sample_variance().map_or(f64::NAN, f64::sqrt),
+            mean_stderr: stderrs.mean().unwrap_or(f64::NAN),
+        }
+    }
+
+    /// `empirical_std / mean_stderr`.
+    pub fn ratio(&self) -> f64 {
+        self.empirical_std / self.mean_stderr
+    }
+}
+
 /// Online weighted scalar mean/variance accumulator.
 ///
 /// `WeightedScalarMoments` stores the total weight, squared-weight sum, mean, and weighted sum of

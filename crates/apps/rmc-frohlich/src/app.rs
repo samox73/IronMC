@@ -222,6 +222,27 @@ pub fn run_bench(cfg: &RunConfig) -> AppResult<BenchReport> {
     })
 }
 
+/// [`run_bench`] under `seeds` consecutive master seeds (`cfg.seed`, `cfg.seed + 1`, ...), one
+/// thread per seed. The seed-to-seed scatter of the reported means is the ground truth that the
+/// stated error bars are calibrated against (`examples/calibrate.rs`).
+pub fn run_seeds(cfg: &RunConfig, seeds: u64) -> AppResult<Vec<BenchReport>> {
+    std::thread::scope(|scope| {
+        let handles = (0..seeds)
+            .map(|offset| {
+                let cfg = RunConfig {
+                    seed: cfg.seed.wrapping_add(offset),
+                    ..cfg.clone()
+                };
+                scope.spawn(move || run_bench(&cfg).map_err(|e| e.to_string()))
+            })
+            .collect::<Vec<_>>();
+        handles
+            .into_iter()
+            .map(|handle| Ok(handle.join().expect("seed run panicked")?))
+            .collect()
+    })
+}
+
 /// Runs `cfg.chains` chains to completion (with warmup), optionally showing progress bars.
 pub fn run_from_config_with_progress(cfg: &RunConfig, show_progress: bool) -> AppResult<RunOutput> {
     let runner = Runner::new(SeedSource::new(cfg.seed), build_chain(cfg.clone()))

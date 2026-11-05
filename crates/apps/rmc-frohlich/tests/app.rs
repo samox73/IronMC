@@ -147,3 +147,36 @@ fn write_results_creates_summary_and_artifacts() {
 
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+/// Stated error bars must reproduce the seed-to-seed scatter of the means.
+#[test]
+#[ignore = "8-seed calibration run; run explicitly in release mode"]
+fn error_bars_match_seed_scatter() {
+    use rmc_frohlich::app::run_seeds;
+    use rmc_stats::ErrorBarCalibration;
+
+    let cfg = RunConfig {
+        max_steps: 10_000_000,
+        warmup_steps: 1_000_000,
+        ..RunConfig::default()
+    };
+    let reports = run_seeds(&cfg, 8).unwrap();
+    let energy = ErrorBarCalibration::from_estimates(
+        reports
+            .iter()
+            .map(|r| (r.summary.energy.mean, r.summary.energy.stderr)),
+    );
+    let weight = ErrorBarCalibration::from_estimates(reports.iter().map(|r| {
+        (
+            r.summary.quasiparticle_weight.mean,
+            r.summary.quasiparticle_weight.stderr,
+        )
+    }));
+    eprintln!(
+        "E ratio {:.3}, Z ratio {:.3}",
+        energy.ratio(),
+        weight.ratio()
+    );
+    assert!((0.6..=1.6).contains(&energy.ratio()), "E: {energy:?}");
+    assert!((0.6..=1.6).contains(&weight.ratio()), "Z: {weight:?}");
+}

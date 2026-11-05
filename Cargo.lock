@@ -3064,6 +3064,7 @@ dependencies = [
  "rmc-grids",
  "rmc-io",
  "rmc-numeric",
+ "rmc-stats",
  "rustfft",
  "serde",
  "serde_json",
