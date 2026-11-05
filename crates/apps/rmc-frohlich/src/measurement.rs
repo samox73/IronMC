@@ -4,7 +4,6 @@ use rmc_grids::{Grid1d, LinearGrid};
 
 use crate::diagram::{Diagram, norm0};
 use crate::flat::FlatDiagram;
-use crate::physics;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct BatchedSum {
@@ -22,10 +21,9 @@ impl BatchedSum {
 
     pub fn with_expected_samples(n_batches: usize, expected_samples: usize) -> Self {
         assert!(n_batches >= 2, "jackknife needs at least two batches");
-        let batch_len = expected_samples.max(1).div_ceil(n_batches).max(1);
         Self {
             n_batches,
-            batch_len,
+            batch_len: batch_len(n_batches, expected_samples),
             batch_sums: vec![0.0; n_batches],
             batch_counts: vec![0; n_batches],
             next: 0,
@@ -39,7 +37,10 @@ impl BatchedSum {
         self.next += 1;
     }
 
-    pub fn reset(&mut self) {
+    /// Clear the sums and re-lay the batch schedule over the next `expected_samples` samples, so
+    /// a window that starts mid-run still fills every batch.
+    pub fn restart(&mut self, expected_samples: usize) {
+        self.batch_len = batch_len(self.n_batches, expected_samples);
         self.batch_sums.fill(0.0);
         self.batch_counts.fill(0);
         self.next = 0;
@@ -109,6 +110,10 @@ impl Merge for BatchedSum {
     }
 }
 
+fn batch_len(n_batches: usize, expected_samples: usize) -> usize {
+    expected_samples.max(1).div_ceil(n_batches).max(1)
+}
+
 /// A set of `num_bins` batched-sum series that all share ONE global sample schedule.
 ///
 /// Every measured sample advances the schedule exactly once and contributes to at most one
@@ -141,11 +146,10 @@ impl BinnedBatchedSums {
         expected_samples: usize,
     ) -> Self {
         assert!(n_batches >= 2, "jackknife needs at least two batches");
-        let batch_len = expected_samples.max(1).div_ceil(n_batches).max(1);
         Self {
             n_batches,
             num_bins,
-            batch_len,
+            batch_len: batch_len(n_batches, expected_samples),
             batch_sums: vec![0.0; num_bins * n_batches],
             batch_counts: vec![0; n_batches],
             next: 0,
@@ -488,7 +492,9 @@ impl Merge for PolaronStats {
 }
 
 /// Collects [`PolaronStats`] from sampled [`Diagram`] states during a Monte Carlo run, with
-/// periodic self-consistent reweighting of the energy estimate.
+/// periodic self-consistent reweighting of the energy estimate (damped Newton steps on windows
+/// that grow by `period_multiplier`; the self-energy histogram keeps every sample, the
+/// energy/Z accumulators only the final window).
 #[derive(Clone, Debug)]
 pub struct PolaronMeasurement {
     stats: PolaronStats,
@@ -606,17 +612,24 @@ impl PolaronMeasurement {
         self.stats
     }
 
+    /// Start a new energy window at `energy_estimate`: the `energy`/`a`/denominator batches are
+    /// re-laid over the samples left in the run, so the final window fills every batch whatever
+    /// its start.
     pub(crate) fn reset_flat_energy_window(
         &mut self,
         energy_estimate: f64,
         self_consistent_period: usize,
     ) {
+        let remaining = self
+            .stats
+            .expected_samples
+            .saturating_sub(self.stats.sample_count);
         self.stats.energy_estimate = energy_estimate;
         self.stats.energy_estimates.push(energy_estimate);
-        self.stats.energy.reset();
-        self.stats.a.reset();
+        self.stats.energy.restart(remaining);
+        self.stats.a.restart(remaining);
         if let Some(zeroth) = &mut self.stats.zeroth_for_energy {
-            zeroth.reset();
+            zeroth.restart(remaining);
         }
         self.stats.self_consistent_count = 0;
         self.stats.self_consistent_period = self_consistent_period;
@@ -625,23 +638,30 @@ impl PolaronMeasurement {
             .push(self.stats.self_consistent_period);
     }
 
-    /// One self-consistent reweighting step at the end of a window: `E_est ← ε_k + Σ(E_est)`
-    /// (`bare_dispersion` is `ε_k` of the sampled diagram), then a fresh energy window.
-    fn reevaluate_energy_estimate(&mut self, bare_dispersion: f64) {
+    /// One self-consistent step at the end of a window: `E_est ← E_est + Z · [ε_k + Σ − E_est]`
+    /// (the Newton step of [`PolaronStats::jackknife_energy_newton`], whose `Z ∈ (0, 1]` damps
+    /// the bare iteration `E_est ← ε_k + Σ(E_est)` that oscillated), then a fresh energy window.
+    ///
+    /// The window schedule depends only on the sample count, never on the data: a window whose
+    /// estimate is not finite (too few populated batches) is restarted at the old `E_est`, so
+    /// parallel chains always share one batch layout and merge.
+    /// ponytail: the first window is laid over the whole run, so with `n_batches` small enough
+    /// that `expected_samples / n_batches` exceeds the period it is a no-op until the growing
+    /// period covers two batches; re-lay the first window over its own period if that bites.
+    fn reevaluate_energy_estimate(&mut self) {
         let next_period =
             ((self.stats.self_consistent_period as f64) * self.stats.period_multiplier) as usize;
-        // If the next period cannot be completed before the run ends, resetting here would leave
-        // the final estimate with only the truncated tail — down to a single jackknife batch
-        // (=> NaN). Freeze reweighting instead and let the current window run to the end.
+        // If the next period cannot be completed before the run ends, restarting here would leave
+        // the final estimate with only the truncated tail. Freeze reweighting instead and let the
+        // current window run to the end.
         if self.stats.sample_count + next_period > self.stats.expected_samples {
             self.stats.self_consistent_period = usize::MAX;
             return;
         }
-        let estimate = self.stats.jackknife_energy();
-        if !estimate.mean.is_finite() {
-            return;
-        }
-        self.reset_flat_energy_window(bare_dispersion + estimate.mean, next_period);
+        let estimate = self.stats.jackknife_energy_newton();
+        let energy_estimate =
+            if estimate.mean.is_finite() { estimate.mean } else { self.stats.energy_estimate };
+        self.reset_flat_energy_window(energy_estimate, next_period);
     }
 }
 
@@ -681,7 +701,7 @@ impl Measurement<Diagram> for PolaronMeasurement {
         self.stats.sample_count += 1;
         self.stats.self_consistent_count += 1;
         if self.stats.self_consistent_count > self.stats.self_consistent_period {
-            self.reevaluate_energy_estimate(Diagram::bare_dispersion(&d.momentum_out()));
+            self.reevaluate_energy_estimate();
         }
     }
 
@@ -748,7 +768,7 @@ impl Measurement<FlatDiagram> for PolaronMeasurement {
         };
         self.measure_flat_sample(d.tau(), d.order, exact_value);
         if self.stats.self_consistent_count > self.stats.self_consistent_period {
-            self.reevaluate_energy_estimate(physics::bare_dispersion(d.momentum_out()));
+            self.reevaluate_energy_estimate();
         }
     }
 
@@ -989,6 +1009,28 @@ mod tests {
         assert_eq!(stats.energy.total_count(), 6);
         assert_eq!(stats.self_consistent_period, usize::MAX);
         assert_eq!(stats.energy_estimates.len(), 1);
+    }
+
+    /// A restarted window re-lays its batches over the samples left in the run, so the final
+    /// window fills every batch evenly instead of leaving most of them empty.
+    #[test]
+    fn restarted_window_fills_all_batches() {
+        let d0 = Diagram::default();
+        // Restart at sample 21 (period 20) over the 79 remaining samples -> batch_len 20; the
+        // next window (period 40) ends at sample 62, where 62 + 80 > 100 freezes the loop.
+        let mut measurement = PolaronMeasurement::new(10, 30.0, 4, 100, -1.0168, 20, 2.0, &d0);
+        for _ in 0..100 {
+            measurement.measure(&d0);
+        }
+
+        let stats = measurement.finish();
+        assert_eq!(stats.energy_estimates.len(), 2);
+        assert_eq!(stats.energy.batch_counts, vec![20, 20, 20, 19]);
+        assert_eq!(
+            stats.energy_denominator().batch_counts,
+            vec![20, 20, 20, 19]
+        );
+        assert_eq!(stats.zeroth.batch_counts, vec![25, 25, 25, 25]);
     }
 
     /// The energy window that reaches the end of the run is never a truncated tail: it spans at

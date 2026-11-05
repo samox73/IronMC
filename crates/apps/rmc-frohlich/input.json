@@ -9,7 +9,7 @@
   "num_bins": 2000,
   "n_batches": 256,
   "energy_estimate": -1.0168,
-  "initial_self_consistent_period": 1000,
+  "initial_self_consistent_period": 100000,
   "period_multiplier": 1.5,
   "fft_beta": 100.0,
   "seed": 8267165747609980501,

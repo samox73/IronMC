@@ -12,7 +12,6 @@ use crate::flat::FlatDiagram;
 use crate::flat::philox::{PhiloxRng, keyed_draw};
 use crate::flat::updates::{FlatPolaronUpdate, default_update_set};
 use crate::measurement::{PolaronMeasurement, PolaronStats};
-use crate::physics;
 use crate::update_stats::UpdateStatEntry;
 
 #[derive(Clone, Debug)]
@@ -83,7 +82,6 @@ pub fn run_batched(
         maybe_reweight_uniformly(
             cfg,
             samples_done,
-            chains[0].momentum_out(),
             &mut measurements,
             &mut self_consistent_period,
         );
@@ -189,10 +187,11 @@ pub(crate) fn update_stat_templates(
         .collect()
 }
 
+/// The batched drivers' self-consistent step: all chains share one `energy_estimate`, one
+/// Newton step from the merged window (see `PolaronMeasurement::reevaluate_energy_estimate`).
 pub(crate) fn maybe_reweight_uniformly(
     cfg: &RunConfig,
     samples_done: usize,
-    momentum_out: crate::physics::Vec3,
     measurements: &mut [PolaronMeasurement],
     self_consistent_period: &mut usize,
 ) {
@@ -212,11 +211,9 @@ pub(crate) fn maybe_reweight_uniformly(
     else {
         return;
     };
-    let estimate = window.jackknife_energy();
-    if !estimate.mean.is_finite() {
-        return;
-    }
-    let energy_estimate = physics::bare_dispersion(momentum_out) + estimate.mean;
+    let estimate = window.jackknife_energy_newton();
+    let energy_estimate =
+        if estimate.mean.is_finite() { estimate.mean } else { window.energy_estimate };
     *self_consistent_period = next_period;
     for measurement in measurements {
         measurement.reset_flat_energy_window(energy_estimate, next_period);

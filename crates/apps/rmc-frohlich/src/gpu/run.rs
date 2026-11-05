@@ -139,7 +139,6 @@ pub fn run_device<R: cubecl::prelude::Runtime>(
             maybe_reweight_uniformly(
                 cfg,
                 samples_done,
-                [cfg.momentum, 0.0, 0.0],
                 &mut measurements,
                 &mut self_consistent_period,
             );

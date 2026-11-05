@@ -22,9 +22,12 @@ pub struct RunConfig {
     pub num_bins: usize,
     /// Number of jackknife batches.
     pub n_batches: usize,
-    /// Initial guess for the ground-state energy, used to reweight `AddPhonon`/`RemovePhonon`.
+    /// Initial guess for the ground-state energy; it reweights the energy/Z estimators (not the
+    /// updates) and is refined self-consistently during the run.
     pub energy_estimate: f64,
-    /// Steps between successive re-estimates of `energy_estimate`.
+    /// Samples (one per cycle) in the first self-consistent window. At the end of each window
+    /// `energy_estimate` takes one damped Newton step and the energy/Z accumulators restart, so
+    /// the window must be long enough for its own estimate to be reliable (>= 1e5).
     pub initial_self_consistent_period: usize,
     /// Growth factor applied to the self-consistent period after each reweighting.
     pub period_multiplier: f64,
@@ -52,7 +55,7 @@ impl Default for RunConfig {
             num_bins: 2_000,
             n_batches: 256,
             energy_estimate: -1.0168,
-            initial_self_consistent_period: 1_000,
+            initial_self_consistent_period: 100_000,
             period_multiplier: 1.5,
             fft_beta: 100.0,
             seed: 8_267_165_747_609_980_501,
