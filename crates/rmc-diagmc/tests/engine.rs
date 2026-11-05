@@ -219,6 +219,55 @@ fn frohlich_mishchenko_stage_zero() {
     }
 }
 
+/// Stated error bars must reproduce the seed-to-seed scatter of the means. `summarize` jackknifes
+/// all batches of all chains as if independent; this is the check that they are.
+#[test]
+#[ignore = "8-seed calibration run; run explicitly in release mode"]
+fn error_bars_match_seed_scatter() {
+    use rmc_diagmc::run_seeds;
+    use rmc_stats::ErrorBarCalibration;
+
+    let reports = run_seeds(
+        Arc::new(FrohlichModel::new(1.0)),
+        &stage_zero_fixed_tau_config(10_000_000),
+        8,
+    )
+    .unwrap();
+    for (name, pick) in [
+        (
+            "e0_thermo",
+            (|r| r.e0_thermo) as fn(&rmc_diagmc::Report) -> rmc_diagmc::Estimate,
+        ),
+        ("sign", |r| r.sign),
+        ("mean_order", |r| r.mean_order),
+    ] {
+        let calibration = ErrorBarCalibration::from_estimates(reports.iter().map(|r| {
+            let e = pick(r);
+            (e.mean, e.stderr)
+        }));
+        eprintln!("{name}: {calibration:?}, ratio {:.3}", calibration.ratio());
+        // The Fröhlich sign is exactly 1 in every run: 0/0, nothing to calibrate.
+        let exact = calibration.empirical_std == 0.0 && calibration.mean_stderr == 0.0;
+        assert!(
+            exact || (0.6..=1.6).contains(&calibration.ratio()),
+            "{name}: {calibration:?}"
+        );
+    }
+}
+
+/// The fixed-τ variant of `frohlich_mishchenko_stage_zero` at α = 1.
+pub fn stage_zero_fixed_tau_config(max_steps: u64) -> DiagConfig {
+    DiagConfig {
+        mu: -1.013 - 0.2,
+        max_steps,
+        warmup_steps: 1_000_000,
+        fixed_tau: true,
+        max_tau: 30.0,
+        tau_fit: 15.0,
+        ..DiagConfig::default()
+    }
+}
+
 #[test]
 #[ignore = "10M-step thermodynamic-estimator curve"]
 fn frohlich_alpha_two_energy_curve_flattens() {

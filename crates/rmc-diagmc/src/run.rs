@@ -150,6 +150,28 @@ pub fn run(model: Arc<dyn Model>, cfg: DiagConfig) -> Result<Report> {
     Ok(run_leg(model, cfg, 0, None)?.report)
 }
 
+/// [`run`] under `seeds` consecutive master seeds (`cfg.seed`, `cfg.seed + 1`, ...), one thread
+/// per seed on the shared rayon pool. The seed-to-seed scatter of the reported means is the
+/// ground truth that the stated error bars are calibrated against (`examples/calibrate.rs`).
+pub fn run_seeds(model: Arc<dyn Model>, cfg: &DiagConfig, seeds: u64) -> Result<Vec<Report>> {
+    std::thread::scope(|scope| {
+        let handles = (0..seeds)
+            .map(|offset| {
+                let cfg = DiagConfig {
+                    seed: cfg.seed.wrapping_add(offset),
+                    ..cfg.clone()
+                };
+                let model = model.clone();
+                scope.spawn(move || run(model, cfg))
+            })
+            .collect::<Vec<_>>();
+        handles
+            .into_iter()
+            .map(|handle| handle.join().expect("seed run panicked"))
+            .collect()
+    })
+}
+
 /// The slotmap run parameterized for multi-node (chain-id `chain_offset`) and
 /// checkpoint resume (`resume` = each chain's saved `(Diagram, rng)`; when
 /// `Some`, warmup is skipped and the chains continue from where they stopped).
